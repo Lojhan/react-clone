@@ -1,0 +1,27 @@
+{
+  "name": "react-clone",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "parcel index.html --open",
+    "ssr": "parcel src/ssr.tsx --port 4000",
+    "react": "parcel index.tsx --port 3000"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^20.8.10",
+    "parcel": "^2.10.1",
+    "typescript": "^5.2.2"
+  },
+  "devDependencies": {
+    "buffer": "^6.0.3",
+    "events": "^3.3.0",
+    "process": "^0.11.10",
+    "stream-http": "^3.2.0",
+    "url": "^0.11.3"
+  }
+}
