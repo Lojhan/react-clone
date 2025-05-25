@@ -1,6 +1,6 @@
 import React from "./React";
 import { isFragment, isPrimitive, isServerComponent } from "./helpers";
-import type { Children, Component, Props, ReactComponent } from "./types";
+import type { Component, Props } from "./types";
 
 type VNode = {
   type: string | Function | Symbol;
@@ -34,7 +34,6 @@ function ReactDOM() {
   return {
     renderRoot,
     rerender,
-    renderToHTMLString,
   };
 }
 
@@ -208,52 +207,44 @@ function createTextNode(value: string | number) {
   return document.createTextNode(value.toString());
 }
 
-function createDomElement(tag: string, props: Props) {
-  const element = document.createElement(tag);
-
-  Object.keys(props)
-    .filter((key) => key !== "children")
-    .forEach((key) => (element[key.toLowerCase()] = props[key]));
-
-  if (props.style) {
-    if (typeof props.style === "string") {
-      element.style.cssText = props.style;
-    } else if (typeof props.style === "object") {
-      Object.keys(props.style).forEach((styleKey) => {
-        const styleValue = props.style[styleKey];
-        if (styleValue !== undefined) {
-          element.style[styleKey as any] = styleValue;
-        }
-      });
-    }
-  }
-
-  const classList =
-    props.className?.split(" ").filter((e: string) => e !== "") ?? [];
-  if (classList.length > 0) element.classList.add(...classList);
-  if (props.ref) props.ref.current = element;
-  return element;
+function createDomElement(tag: string, props: Props): HTMLElement {
+  return createOrUpdateDomElement(tag, props);
 }
 
 function updateDomElement(
   element: HTMLElement,
   oldProps: Props,
   newProps: Props
-): void {
-  // Update or add properties from new props
+) {
+  createOrUpdateDomElement(element, newProps, oldProps);
+}
+
+function createOrUpdateDomElement(
+  tag: string | HTMLElement,
+  newProps: Props,
+  oldProps?: Props
+): HTMLElement {
+  const element =
+    typeof tag === "string"
+      ? document.createElement(tag)
+      : (tag as HTMLElement);
+
+  // Remove properties from oldProps that aren't in newProps
+  if (oldProps) {
+    Object.keys(oldProps)
+      .filter((key) => key !== "children" && !(key in newProps))
+      .forEach((key) => {
+        element[key.toLowerCase()] = "";
+      });
+  }
+
+  // Update or set properties from newProps
   Object.keys(newProps)
     .filter((key) => key !== "children")
     .forEach((key) => {
-      if (element[key.toLowerCase()] !== newProps[key]) {
+      if (!oldProps || element[key.toLowerCase()] !== newProps[key]) {
         element[key.toLowerCase()] = newProps[key];
       }
-    });
-
-  // Remove properties that exist in old props but not in new props
-  Object.keys(oldProps)
-    .filter((key) => key !== "children" && !(key in newProps))
-    .forEach((key) => {
-      element[key.toLowerCase()] = "";
     });
 
   // Handle style updates
@@ -275,7 +266,7 @@ function updateDomElement(
     newProps.className?.split(" ").filter((e: string) => e !== "") ?? [];
   if (classList.length > 0) {
     // Clear old classes first to prevent duplicates
-    if (oldProps.className) {
+    if (oldProps?.className) {
       element.className = "";
     }
     element.classList.add(...classList);
@@ -285,64 +276,6 @@ function updateDomElement(
   if (newProps.ref) {
     newProps.ref.current = element;
   }
-}
 
-async function renderToHTMLString(
-  component: Component | ReactComponent | Children
-): Promise<string> {
-  if (!component) return "";
-
-  if (typeof component === "string" || typeof component === "number") {
-    return component.toString();
-  }
-
-  if (Array.isArray(component)) {
-    const elements = await Promise.all(component.map(renderToHTMLString));
-    return elements.join("");
-  }
-
-  if (typeof component.tag === "function") {
-    const element = await component.tag(component.props, component.children);
-    return await renderToHTMLString(element);
-  }
-
-  return createHTMLString(component.tag, component.props);
-}
-
-async function createHTMLString(tag: string, props: Props) {
-  const excluded = ["children", "ref", "__self", "__source"];
-
-  if (props.className) {
-    props.class = props.className;
-    delete props.className;
-  }
-
-  if (props.style) {
-    if (typeof props.style === "string") {
-      props.style = props.style;
-    } else if (typeof props.style === "object") {
-      props.style = Object.entries(props.style)
-        .map(([key, value]) => `${key}: ${value};`)
-        .join(" ");
-    }
-  }
-
-  const tagProps = Object.keys(props)
-    .filter((key) => excluded.indexOf(key) == -1)
-    .map((key) => `${key.toLowerCase()}="${props[key]}"`)
-    .join(" ")
-    .trim();
-
-  const openTag = `<${tag} ${tagProps}>`;
-  const closeTag = `</${tag}>`;
-
-  let awaitedChildren: string[] = [];
-
-  if (props.children) {
-    const promises = props.children.map(renderToHTMLString);
-    awaitedChildren = await Promise.all(promises);
-  }
-
-  const children = awaitedChildren.join("");
-  return `${openTag}${children}${closeTag}`;
+  return element;
 }

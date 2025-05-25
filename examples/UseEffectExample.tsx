@@ -10,7 +10,7 @@ export function UseEffectExample() {
 
   return (
     <div>
-      <h1>useEffect Example</h1>
+      <h1>useEffect Example - check the document title</h1>
       <button onClick={() => setCount(count + 1)}>Click {count} times</button>
     </div>
   );

@@ -1,6 +1,6 @@
 import ReactDOM from "./ReactDOM";
 import { mergeProps, recursivelyFindMatchingChild } from "./helpers";
-import type { ReactComponent, Component, Props } from "./types";
+import type { ReactComponent, Component, Props, SyncTag } from "./types";
 
 type HookNode = {
   id: string;
@@ -16,7 +16,6 @@ export function React() {
   const nodeStack: HookNode[] = [];
   const updateQueue = [];
   const promiseCache = new Map();
-  const componentInstanceMap = new WeakMap();
 
   function createNode(id: string, parent?: HookNode): HookNode {
     return {
@@ -56,13 +55,6 @@ export function React() {
     }
   }
 
-  function generateComponentId(tag: any, props: Props): string {
-    const propsHash = hash(safeStringify(props));
-    const tagName = typeof tag === "function" ? tag.name || "Anonymous" : tag;
-    const key = props.key || propsHash;
-    return `${tagName}_${key}`;
-  }
-
   function createElement(
     tag: string | ((props: Props, children: Component[]) => Component),
     props: Props = {},
@@ -96,29 +88,12 @@ export function React() {
 
     const componentId = generateComponentId(tag, props);
 
-    // Check if we're already rendering this component to prevent infinite loops
-    if (
-      componentInstanceMap.has(tag) &&
-      componentInstanceMap.get(tag) === componentId
-    ) {
-      console.warn(
-        `Potential infinite loop detected for component ${componentId}`
-      );
-      return {
-        tag: "div",
-        props: { children: ["Error: Infinite loop detected"] },
-        children: [],
-      };
-    }
-
     try {
-      componentInstanceMap.set(tag, componentId);
       enterComponent(componentId);
 
       const result = tag(props, children) as ReactComponent;
 
       exitComponent();
-      componentInstanceMap.delete(tag);
 
       return {
         ...result,
@@ -128,7 +103,6 @@ export function React() {
       };
     } catch (e) {
       exitComponent();
-      componentInstanceMap.delete(tag);
       return e;
     }
   }
@@ -196,7 +170,9 @@ export function React() {
   function resetHookIndices(node: HookNode | null) {
     if (!node) return;
     node.hookIndex = 0;
-    node.children.forEach((child) => resetHookIndices(child));
+    for (const [_, child] of node.children) {
+      resetHookIndices(child);
+    }
   }
 
   function getHookIndex() {
@@ -214,25 +190,12 @@ export function React() {
     return currentNode.hooks[index] as T;
   }
 
-  const setStateForIndex = (index: number, newState: unknown) => {
+  function setStateForIndex(index: number, newState: unknown) {
     if (!currentNode) {
       throw new Error("setStateForIndex called outside of component context");
     }
     currentNode.hooks[index] = newState;
-  };
-
-  // Debug function to visualize the tree
-  const debugTree = () => {
-    function printNode(node: HookNode, depth = 0) {
-      const indent = "  ".repeat(depth);
-      console.log(`${indent}${node.id}: [${node.hooks.length} hooks]`);
-      node.children.forEach((child) => printNode(child, depth + 1));
-    }
-    if (rootNode) {
-      console.log("Hook Tree:");
-      printNode(rootNode);
-    }
-  };
+  }
 
   return {
     Fragment: Symbol.for("react.fragment"),
@@ -247,7 +210,6 @@ export function React() {
     directUpdate,
     getStateForIndex,
     promiseCache,
-    debugTree, // Export debug function
   };
 }
 
@@ -263,7 +225,6 @@ export const {
   directUpdate,
   getStateForIndex,
   promiseCache,
-  debugTree,
 } = react;
 
 export {
@@ -277,14 +238,23 @@ export {
 } from "./ReactHooks";
 export { Suspense } from "./ReactExotic";
 
-const hash = (str: string) =>
-  str.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+function generateComponentId(tag: SyncTag, props: Props): string {
+  const propsHash = hash(safeStringify(props));
+  const tagName = typeof tag === "function" ? tag.name || "Anonymous" : tag;
+  const key = props.key || propsHash;
+  return `${tagName}_${key}`;
+}
+
+function hash(str: string) {
+  return str.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+}
 // Safely stringify props to avoid circular structure errors
+
 function safeStringify(obj: any) {
   const seen = new WeakSet();
   return JSON.stringify(
     obj,
-    function (key, value) {
+    (_, value) => {
       if (typeof value === "object" && value !== null) {
         if (seen.has(value)) return;
         seen.add(value);

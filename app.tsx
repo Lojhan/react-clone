@@ -1,6 +1,5 @@
 
 import { ContextExample } from "./examples/ContextComponentExample";
-import { FunctionalComponentExample } from "./examples/FunctionalComponentExample";
 import { LazyComponentExample } from "./examples/LazyComponentExample";
 import { UseEffectExample } from "./examples/UseEffectExample";
 import { ImperativeHandleExample } from "./examples/UseImperativeHandlerExample";
@@ -13,7 +12,6 @@ const examples = [
   { title: "useEffect Example", example: UseEffectExample, href: "useEffect" },
   { title: "useImperativeHandle Example", example: ImperativeHandleExample, href: "useImperativeHandle" },
   { title: "Context Example", example: ContextExample, href: "context" },
-  { title: "Functional Component Example", example: FunctionalComponentExample, href: "functionalComponent" },
   { title: "Key Example", example: KeyExample, href: "key" },
   { title: "Suspense and use Example", example: LazyComponentExample, href: "lazyComponent" }
 ]
