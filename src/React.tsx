@@ -90,8 +90,9 @@ export function React() {
     props: Props,
     children: Component[]
   ): Component {
-    if (tag.name === "Suspense")
+    if (tag.name === "Suspense") {
       return createSuspenseElement(tag, props, children);
+    }
 
     const componentId = generateComponentId(tag, props);
 
@@ -150,7 +151,10 @@ export function React() {
     };
   }
 
-  function createResource<T>(promiseFn: () => Promise<T>, key: string | number) {
+  function createResource<T>(
+    promiseFn: () => Promise<T>,
+    key: string | number
+  ) {
     if (!promiseCache.has(key)) {
       promiseCache.set(
         key,
