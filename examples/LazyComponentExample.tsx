@@ -7,14 +7,15 @@ type TODO = {
   completed: boolean;
 };
 
-function LazyComponent() {
+async function getTodos() {
   const url = "https://jsonplaceholder.typicode.com/todos";
-  const data = use<TODO[]>(() => {
-    return new Promise((resolve) => {
-      const res = fetch(url).then((res) => res.json());
-      setTimeout(() => resolve(res), 2000);
-    });
-  }, "promise");
+  const res = await fetch(url);
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  return res.json();
+}
+
+function LazyComponent() {
+  const data = use<TODO[]>(getTodos, "promise");
 
   return (
     <div>

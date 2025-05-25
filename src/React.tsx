@@ -2,11 +2,66 @@ import ReactDOM from "./ReactDOM";
 import { mergeProps, recursivelyFindMatchingChild } from "./helpers";
 import type { ReactComponent, Component, Props } from "./types";
 
+type HookNode = {
+  id: string;
+  hooks: unknown[];
+  hookIndex: number;
+  children: Map<string, HookNode>;
+  parent?: HookNode;
+};
+
 export function React() {
-  const state = [];
+  let rootNode: HookNode | null = null;
+  let currentNode: HookNode | null = null;
+  const nodeStack: HookNode[] = [];
   const updateQueue = [];
   const promiseCache = new Map();
-  let hookIndex = 0;
+  const componentInstanceMap = new WeakMap();
+
+  function createNode(id: string, parent?: HookNode): HookNode {
+    return {
+      id,
+      hooks: [],
+      hookIndex: 0,
+      children: new Map(),
+      parent,
+    };
+  }
+
+  function enterComponent(componentId: string) {
+    if (!rootNode) {
+      rootNode = createNode("root");
+      currentNode = rootNode;
+    }
+
+    if (!currentNode) {
+      throw new Error("Invalid component hierarchy");
+    }
+
+    let childNode = currentNode.children.get(componentId);
+    if (!childNode) {
+      childNode = createNode(componentId, currentNode);
+      currentNode.children.set(componentId, childNode);
+    }
+
+    nodeStack.push(currentNode);
+    currentNode = childNode;
+    currentNode.hookIndex = 0;
+  }
+
+  function exitComponent() {
+    const parentNode = nodeStack.pop();
+    if (parentNode) {
+      currentNode = parentNode;
+    }
+  }
+
+  function generateComponentId(tag: any, props: Props): string {
+    const propsHash = hash(safeStringify(props));
+    const tagName = typeof tag === "function" ? tag.name || "Anonymous" : tag;
+    const key = props.key || propsHash;
+    return `${tagName}_${key}`;
+  }
 
   function createElement(
     tag: string | ((props: Props, children: Component[]) => Component),
@@ -38,14 +93,41 @@ export function React() {
     if (tag.name === "Suspense")
       return createSuspenseElement(tag, props, children);
 
-    try {
+    const componentId = generateComponentId(tag, props);
+
+    // Check if we're already rendering this component to prevent infinite loops
+    if (
+      componentInstanceMap.has(tag) &&
+      componentInstanceMap.get(tag) === componentId
+    ) {
+      console.warn(
+        `Potential infinite loop detected for component ${componentId}`
+      );
       return {
-        ...(tag(props, children) as ReactComponent),
+        tag: "div",
+        props: { children: ["Error: Infinite loop detected"] },
+        children: [],
+      };
+    }
+
+    try {
+      componentInstanceMap.set(tag, componentId);
+      enterComponent(componentId);
+
+      const result = tag(props, children) as ReactComponent;
+
+      exitComponent();
+      componentInstanceMap.delete(tag);
+
+      return {
+        ...result,
         tag,
         children,
         props: mergeProps(props, { children }),
       };
     } catch (e) {
+      exitComponent();
+      componentInstanceMap.delete(tag);
       return e;
     }
   }
@@ -68,7 +150,7 @@ export function React() {
     };
   }
 
-  function createResource<T>(promiseFn: () => Promise<T>, key: string) {
+  function createResource<T>(promiseFn: () => Promise<T>, key: string | number) {
     if (!promiseCache.has(key)) {
       promiseCache.set(
         key,
@@ -87,35 +169,70 @@ export function React() {
 
   function enqueueUpdate(update: (arg0: unknown) => void, index: number) {
     updateQueue.push(() => {
-      const newState = update(state[index]);
-      state[index] = newState;
+      if (currentNode) {
+        const newState = update(currentNode.hooks[index]);
+        currentNode.hooks[index] = newState;
+      }
     });
   }
 
   function directUpdate(update: (arg0: unknown) => void, index: number) {
-    const newState = update(state[index]);
-    state[index] = newState;
+    if (currentNode) {
+      const newState = update(currentNode.hooks[index]);
+      currentNode.hooks[index] = newState;
+    }
   }
 
   function flushUpdate() {
     let update: () => void;
     while ((update = updateQueue.shift())) update();
-    hookIndex = 0;
+    resetHookIndices(rootNode);
   }
 
-  const getHookIndex = () => {
-    const nextIndex = hookIndex++;
-    console.log("hookIndex", nextIndex);
+  function resetHookIndices(node: HookNode | null) {
+    if (!node) return;
+    node.hookIndex = 0;
+    node.children.forEach((child) => resetHookIndices(child));
+  }
+
+  function getHookIndex() {
+    if (!currentNode) {
+      throw new Error("getHookIndex called outside of component context");
+    }
+    const nextIndex = currentNode.hookIndex++;
     return nextIndex;
+  }
+
+  function getStateForIndex<T>(index: number) {
+    if (!currentNode) {
+      throw new Error("getStateForIndex called outside of component context");
+    }
+    return currentNode.hooks[index] as T;
+  }
+
+  const setStateForIndex = (index: number, newState: unknown) => {
+    if (!currentNode) {
+      throw new Error("setStateForIndex called outside of component context");
+    }
+    currentNode.hooks[index] = newState;
   };
 
-  const getStateForIndex = (index: number) => state[index];
-  
-  const setStateForIndex = (index: number, newState: unknown) => {
-    state[index] = newState;
+  // Debug function to visualize the tree
+  const debugTree = () => {
+    function printNode(node: HookNode, depth = 0) {
+      const indent = "  ".repeat(depth);
+      console.log(`${indent}${node.id}: [${node.hooks.length} hooks]`);
+      node.children.forEach((child) => printNode(child, depth + 1));
+    }
+    if (rootNode) {
+      console.log("Hook Tree:");
+      printNode(rootNode);
+    }
   };
 
   return {
+    Fragment: Symbol.for("react.fragment"),
+    generateComponentId,
     mergeProps,
     createResource,
     createElement,
@@ -126,6 +243,7 @@ export function React() {
     directUpdate,
     getStateForIndex,
     promiseCache,
+    debugTree, // Export debug function
   };
 }
 
@@ -141,6 +259,7 @@ export const {
   directUpdate,
   getStateForIndex,
   promiseCache,
+  debugTree,
 } = react;
 
 export {
@@ -153,3 +272,21 @@ export {
   createContext,
 } from "./ReactHooks";
 export { Suspense } from "./ReactExotic";
+
+const hash = (str: string) =>
+  str.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+// Safely stringify props to avoid circular structure errors
+function safeStringify(obj: any) {
+  const seen = new WeakSet();
+  return JSON.stringify(
+    obj,
+    function (key, value) {
+      if (typeof value === "object" && value !== null) {
+        if (seen.has(value)) return;
+        seen.add(value);
+      }
+      return value;
+    },
+    2
+  );
+}

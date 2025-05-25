@@ -36,9 +36,19 @@ export function recursivelyBuildChildren(children: Component[]) {
 export function isServerComponent(tag: Tag, props: Props): tag is AsyncTag {
   if (!tag) return false;
   if (typeof tag === "string") return false;
+  if (typeof tag !== "function") return false;
   return tag(props) instanceof Promise;
 }
 
 export function mergeProps(...props: Props[]) {
   return { ...props[0], ...props[1] }
+}
+
+
+export function isFragment(tag: Tag, props: Props): boolean {
+  return tag === undefined && props.children && props.children.length > 0;
+}
+
+export function isPrimitive(component: Component): component is string | number {
+  return typeof component === "string" || typeof component === "number";
 }

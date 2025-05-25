@@ -35,7 +35,7 @@ export function useState<T>(
 
 export function useEffect(callback: Callback, dependencies: unknown[]) {
   const hookIndex = React.getHookIndex();
-  const prevDependencies = React.getStateForIndex(hookIndex);
+  const prevDependencies = React.getStateForIndex<unknown[]>(hookIndex);
   let cleanupFunction: ReturnType<Callback> | undefined;
   if (dependenciesChanged(prevDependencies, dependencies)) {
     React.setStateForIndex(hookIndex, dependencies);
@@ -94,7 +94,7 @@ export function useReducer<T, A>(
 
 export function useMemo<T>(factory: () => T, dependencies: unknown[]): T {
   const hookIndex = React.getHookIndex();
-  const prevDependencies = React.getStateForIndex(hookIndex);
+  const prevDependencies = React.getStateForIndex<unknown[]>(hookIndex);
   if (dependenciesChanged(prevDependencies, dependencies)) {
     React.setStateForIndex(hookIndex, dependencies);
     return factory();
@@ -112,7 +112,7 @@ export function useCallback<T extends (...args: any[]) => any>(
 export function createContext<T>(defaultValue: T) {
   const context = {
     _currentValue: defaultValue,
-    Provider: (props: { children?: Children, value: T }) => {
+    Provider: (props: { children?: Children; value: T }) => {
       context._currentValue = props.value;
       return props.children;
     },
@@ -130,7 +130,7 @@ export function useImperativeHandle<T>(
   dependencies?: unknown[]
 ) {
   const hookIndex = React.getHookIndex();
-  const prevDependencies = React.getStateForIndex(hookIndex);
+  const prevDependencies = React.getStateForIndex<unknown[]>(hookIndex);
   if (dependenciesChanged(prevDependencies, dependencies)) {
     React.setStateForIndex(hookIndex, dependencies);
     ref.current = createHandle();
