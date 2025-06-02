@@ -4,36 +4,69 @@ import React, {
   useEffect,
   useState,
 } from "../src/React";
+import { useMemo } from "../src/ReactHooks";
+
+const buildMessage = () =>
+  `Current time is ${new Date().toLocaleTimeString()}.`;
 
 const ExampleContext = createContext({
-  time: 0,
+  message: buildMessage(),
+  sendMessage: (_: string) => void 0,
 });
 
-function ExampleContextProvider(props) {
-  const [time, setTime] = useState(Date.now());
+export function ContextExample() {
+  console.log("ContextExample rendered");
+  return (
+    <ExampleContextProvider>
+      <div>
+        <h1>Context Example</h1>
+        <p>
+          This example demonstrates how to use React Context to share state
+          between components.
+        </p>
+        <p>Check the console for messages sent and received.</p>
+      </div>
+      <MessageSender />
+      <MessageReceiver />
+    </ExampleContextProvider>
+  );
+}
 
-  useEffect(() => {
-    setInterval(() => {
-      setTime(Date.now());
-    }, 1000);
-  }, []);
+function ExampleContextProvider(props) {
+  const [message, setMessage] = useState(buildMessage());
+
+  const sendMessage = (msg: string) => {
+    setMessage(msg);
+  };
+
+  const value = useMemo(
+    () => ({ message, sendMessage }),
+    [message, sendMessage]
+  );
 
   return (
-    <ExampleContext.Provider value={{ time }}>
+    <ExampleContext.Provider value={value}>
       {props.children}
     </ExampleContext.Provider>
   );
 }
 
-function ExampleContextConsumer() {
-  const context = useContext(ExampleContext);
-  return <h1>Current time: {new Date(context.time).toLocaleTimeString()}</h1>;
+function MessageSender() {
+  const { message, sendMessage } = useContext(ExampleContext);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const message = buildMessage();
+      sendMessage(message);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  return <div>Sent Message: {message}</div>;
 }
 
-export function ContextExample() {
-  return (
-    <ExampleContextProvider>
-      <ExampleContextConsumer />
-    </ExampleContextProvider>
-  );
+function MessageReceiver() {
+  const ctx = useContext(ExampleContext);
+  return <div>Received Message: {ctx.message}</div>;
 }

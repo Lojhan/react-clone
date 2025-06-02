@@ -16,7 +16,6 @@ async function getTodos() {
 
 function LazyComponent() {
   const data = use<TODO[]>(getTodos, "promise");
-
   return (
     <div>
       {data.map((e) => (

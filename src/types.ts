@@ -13,3 +13,10 @@ export type ReactComponent = {
   props: Props;
   children?: Children;
 };
+
+export type SuspenseComponent = ReactComponent & {
+  __suspense?: {
+    isSuspended: boolean;
+    fallback: Component;
+  };
+};

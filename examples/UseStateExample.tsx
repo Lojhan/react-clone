@@ -2,6 +2,7 @@ import React, { useState } from "../src/React";
 
 export function UseStateExample() {
   const [text, setText] = useState("");
+  console.log("Rendering UseStateExample");
 
   return (
     <div style="display: flex; flex-direction: column; gap: 2rem;">
@@ -22,7 +23,7 @@ const StatefulComponent = ({ depth }) => {
   const [state, setState] = useState(0);
 
   if (depth > 5) {
-    return null; // Prevent too deep recursion
+    return null;
   }
 
   return (

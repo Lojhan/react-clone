@@ -35,12 +35,18 @@ export function useState<T>(
 
 export function useEffect(callback: Callback, dependencies: unknown[]) {
   const hookIndex = React.getHookIndex();
-  const prevDependencies = React.getStateForIndex<unknown[]>(hookIndex);
-  let cleanupFunction: ReturnType<Callback> | undefined;
-  if (dependenciesChanged(prevDependencies, dependencies)) {
-    React.setStateForIndex(hookIndex, dependencies);
-    cleanupFunction = callback();
-    if (cleanupFunction) cleanupFunction();
+  const [prevDependencies, prevCleanupFunction, isMounted] =
+    React.getStateForIndex<
+      [unknown[], ReturnType<Callback> | undefined, boolean]
+    >(hookIndex) || [[], undefined, false];
+
+  if (dependenciesChanged(prevDependencies, dependencies) || !isMounted) {
+    if (prevCleanupFunction) {
+      prevCleanupFunction();
+    }
+
+    const newCleanupFunction = callback();
+    React.setStateForIndex(hookIndex, [dependencies, newCleanupFunction, true]);
   }
 }
 
@@ -48,7 +54,13 @@ function dependenciesChanged(
   prevDependencies: unknown[],
   dependencies: unknown[]
 ) {
+  if (!prevDependencies || prevDependencies.length !== dependencies.length) {
+    return true;
+  }
+
+  if (prevDependencies.length === 0) return false;
   if (!prevDependencies) return true;
+
   return !dependencies.every(
     (dependency, index) => dependency === prevDependencies[index]
   );
@@ -66,8 +78,15 @@ export function useRef<T>(initialValue: T) {
   return ref as { current: T };
 }
 
-export function use<T>(promiseFn: () => Promise<T>, key: string): T {
-  return React.createResource(promiseFn, key);
+export function use<T>(
+  resource: ReturnType<typeof createContext<T>> | (() => Promise<T>),
+  key: string
+): T {
+  if (typeof resource === "function") {
+    return React.createResource(resource, key);
+  }
+
+  return useContext(resource);
 }
 
 export function useReducer<T, A>(
@@ -84,7 +103,7 @@ export function useReducer<T, A>(
 
   function dispatch(action: A) {
     const newState = reducer(state, action);
-    React.directUpdate(() => newState, hookIndex);
+    React.enqueueUpdate(() => newState, hookIndex);
     state = newState;
     ReactDOM.rerender();
   }
@@ -94,12 +113,17 @@ export function useReducer<T, A>(
 
 export function useMemo<T>(factory: () => T, dependencies: unknown[]): T {
   const hookIndex = React.getHookIndex();
-  const prevDependencies = React.getStateForIndex<unknown[]>(hookIndex);
+  const [prevDependencies, memoizedValue] = React.getStateForIndex<
+    [unknown[], T]
+  >(hookIndex) ?? [[], factory()];
+
   if (dependenciesChanged(prevDependencies, dependencies)) {
-    React.setStateForIndex(hookIndex, dependencies);
-    return factory();
+    const value = factory();
+    React.setStateForIndex(hookIndex, [dependencies, value]);
+    return value;
   }
-  return React.getStateForIndex(hookIndex);
+
+  return memoizedValue;
 }
 
 export function useCallback<T extends (...args: any[]) => any>(
@@ -110,18 +134,26 @@ export function useCallback<T extends (...args: any[]) => any>(
 }
 
 export function createContext<T>(defaultValue: T) {
-  const context = {
+  const contextId = Symbol("context");
+  
+  return {
+    _contextId: contextId,
     _currentValue: defaultValue,
-    Provider: (props: { children?: Children; value: T }) => {
-      context._currentValue = props.value;
-      return props.children;
+    Provider(props: { children?: Children; value: T }) {
+      React.setContextValue(contextId, props.value ?? defaultValue);
+      return props.children ?? [];
     },
   };
-  return context;
 }
 
-export function useContext<T>(context: { _currentValue: T }) {
-  return context._currentValue;
+export function useContext<T>(context: {
+  _contextId: symbol;
+  _currentValue: T;
+}): T {
+  return React.getClosestContextValue<T>(
+    context._contextId,
+    context._currentValue
+  );
 }
 
 export function useImperativeHandle<T>(
