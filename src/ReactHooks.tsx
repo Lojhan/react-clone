@@ -8,22 +8,22 @@ type Callback = () => undefined | (() => void);
 
 export function useState<T>(
   initialState: State<T>
-): [T, (newState: T | ((prevState: T) => T)) => void] {
+): readonly [T, (newState: T | ((prevState: T) => T)) => void] {
   const hookIndex = React.getHookIndex();
-  let state: T = React.getStateForIndex(hookIndex);
+  let [state, hookNode] = React.getStateForIndex<T>(hookIndex);
 
   if (typeof initialState === "function" && !state) {
     state = (initialState as () => T)();
   } else if (!state) {
     state = initialState as T;
-    React.setStateForIndex(hookIndex, state);
+    React.setStateForIndex(hookIndex, state, hookNode);
   }
 
   function setState(newState: T | UpdateFunction<T>) {
     if (typeof newState === "function") {
-      React.enqueueUpdate(newState as UpdateFunction<T>, hookIndex);
+      React.enqueueUpdate(newState as UpdateFunction<T>, hookIndex, hookNode);
     } else {
-      React.directUpdate(() => newState, hookIndex);
+      React.directUpdate(() => newState, hookIndex, hookNode);
       state = newState;
     }
 
@@ -35,18 +35,22 @@ export function useState<T>(
 
 export function useEffect(callback: Callback, dependencies: unknown[]) {
   const hookIndex = React.getHookIndex();
-  const [prevDependencies, prevCleanupFunction, isMounted] =
-    React.getStateForIndex<
-      [unknown[], ReturnType<Callback> | undefined, boolean]
-    >(hookIndex) || [[], undefined, false];
+  const [prevState, hookNode] = React.getStateForIndex<
+    [unknown[], ReturnType<Callback> | undefined, boolean]
+  >(hookIndex) || [[], undefined, false];
 
+  const [prevDependencies, prevCleanupFunction, isMounted] = prevState || [];
   if (dependenciesChanged(prevDependencies, dependencies) || !isMounted) {
     if (prevCleanupFunction) {
       prevCleanupFunction();
     }
 
     const newCleanupFunction = callback();
-    React.setStateForIndex(hookIndex, [dependencies, newCleanupFunction, true]);
+    React.setStateForIndex(
+      hookIndex,
+      [dependencies, newCleanupFunction, true],
+      hookNode
+    );
   }
 }
 
@@ -68,11 +72,11 @@ function dependenciesChanged(
 
 export function useRef<T>(initialValue: T) {
   const hookIndex = React.getHookIndex();
-  let ref = React.getStateForIndex(hookIndex);
+  let [ref, hookNode] = React.getStateForIndex(hookIndex);
 
   if (!ref) {
     ref = { current: initialValue };
-    React.setStateForIndex(hookIndex, ref);
+    React.setStateForIndex(hookIndex, ref, hookNode);
   }
 
   return ref as { current: T };
@@ -82,8 +86,9 @@ export function use<T>(
   resource: ReturnType<typeof createContext<T>> | (() => Promise<T>),
   key: string
 ): T {
+  const hookNode = React.getCurrentNode();
   if (typeof resource === "function") {
-    return React.createResource(resource, key);
+    return React.createResource(resource, key, hookNode);
   }
 
   return useContext(resource);
@@ -94,16 +99,16 @@ export function useReducer<T, A>(
   initialState: T
 ): [T, (action: A) => void] {
   const hookIndex = React.getHookIndex();
-  let state: T = React.getStateForIndex(hookIndex);
+  let [state, hookNode] = React.getStateForIndex<T>(hookIndex);
 
   if (!state) {
     state = initialState;
-    React.setStateForIndex(hookIndex, state);
+    React.setStateForIndex(hookIndex, state, hookNode);
   }
 
   function dispatch(action: A) {
     const newState = reducer(state, action);
-    React.enqueueUpdate(() => newState, hookIndex);
+    React.enqueueUpdate(() => newState, hookIndex, hookNode);
     state = newState;
     ReactDOM.rerender();
   }
@@ -113,19 +118,20 @@ export function useReducer<T, A>(
 
 export function useMemo<T>(factory: () => T, dependencies: unknown[]): T {
   const hookIndex = React.getHookIndex();
-  const [prevDependencies, memoizedValue] = React.getStateForIndex<
-    [unknown[], T]
-  >(hookIndex) ?? [[], factory()];
+  const [prevState, hookNode] =
+    React.getStateForIndex<[unknown[], T]>(hookIndex);
 
+  const [prevDependencies, memoizedValue] = prevState || [[], factory()];
   if (dependenciesChanged(prevDependencies, dependencies)) {
     const value = factory();
-    React.setStateForIndex(hookIndex, [dependencies, value]);
+    React.setStateForIndex(hookIndex, [dependencies, value], hookNode);
     return value;
   }
 
   return memoizedValue;
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: This is a custom implementation
 export function useCallback<T extends (...args: any[]) => any>(
   callback: T,
   dependencies: unknown[]
@@ -140,7 +146,8 @@ export function createContext<T>(defaultValue: T) {
     _contextId: contextId,
     _currentValue: defaultValue,
     Provider(props: { children?: Children; value: T }) {
-      React.setContextValue(contextId, props.value ?? defaultValue);
+      const hookNode = React.getCurrentNode();
+      React.setContextValue(contextId, props.value ?? defaultValue, hookNode);
       return props.children ?? [];
     },
   };
@@ -150,9 +157,11 @@ export function useContext<T>(context: {
   _contextId: symbol;
   _currentValue: T;
 }): T {
+  const hookNode = React.getCurrentNode();
   return React.getClosestContextValue<T>(
     context._contextId,
-    context._currentValue
+    context._currentValue,
+    hookNode
   );
 }
 
@@ -162,9 +171,10 @@ export function useImperativeHandle<T>(
   dependencies?: unknown[]
 ) {
   const hookIndex = React.getHookIndex();
-  const prevDependencies = React.getStateForIndex<unknown[]>(hookIndex);
+  const [prevDependencies, hookNode] =
+    React.getStateForIndex<unknown[]>(hookIndex);
   if (dependenciesChanged(prevDependencies, dependencies)) {
-    React.setStateForIndex(hookIndex, dependencies);
+    React.setStateForIndex(hookIndex, dependencies, hookNode);
     ref.current = createHandle();
   }
 }

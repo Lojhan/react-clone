@@ -9,35 +9,60 @@ type HookNode = {
   children: Map<string, HookNode>;
   parent?: HookNode;
   contexts: Map<symbol, unknown>;
+  updateQueue: (() => void)[];
 };
 
 export function React() {
-  let rootNode: HookNode | null = null;
-  let currentNode: HookNode | null = null;
-  const nodeStack: HookNode[] = [];
-  const updateQueue = [];
+  const rootNode: HookNode = createNode("root");
+  let currentNode: HookNode = rootNode;
+  enterComponent("root");
 
-  const memoCache = new Map<string, ReactComponent>();
+  function getCurrentNode() {
+    if (!currentNode) {
+      throw new Error(
+        "No current node found. Ensure you are inside a component."
+      );
+    }
+
+    return currentNode;
+  }
+
+  function debugComponentTree(node: HookNode = rootNode, depth = 0) {
+    const indent = "  ".repeat(depth + 1);
+    console.log(`
+    ${indent}Component: ${node.id} ${node.parent ? `-> ${node.parent.id}` : ""}
+    ${indent}   Hooks: ${node.hooks.length}
+    ${indent}   Hook Index: ${node.hookIndex}
+    ${indent}   Children: ${node.children.size}
+    ${indent}   Contexts: ${node.contexts.size}
+    ${indent}   Update Queue: ${node.updateQueue.length}
+    `);
+
+    for (const child of node.children.values()) {
+      debugComponentTree(child, depth + 1);
+    }
+  }
 
   const suspenseMap: Map<
     string,
     Map<string | number, Promise<unknown> | unknown>
   > = new Map();
-  function getCurrentSuspenseBoundary(_currentNode?: HookNode) {
-    let __currentNode = _currentNode || currentNode;
-    const item = suspenseMap.get(_currentNode?.id || "");
+
+  function getCurrentSuspenseBoundary(hookNode: HookNode) {
+    let _node = hookNode;
+    const item = suspenseMap.get(hookNode?.id || "");
 
     if (item) {
       return item;
     }
 
-    while (__currentNode) {
-      const item = suspenseMap.get(__currentNode.id);
+    while (_node) {
+      const item = suspenseMap.get(_node.id);
       if (item) {
         return item;
       }
 
-      __currentNode = __currentNode.parent;
+      _node = _node.parent;
     }
 
     throw new Error(
@@ -50,35 +75,29 @@ export function React() {
       id,
       hooks: [],
       hookIndex: 0,
-      children: new Map(),
       parent,
+      children: new Map(),
       contexts: new Map(),
+      updateQueue: [],
     };
   }
 
   function enterComponent(componentId: string) {
-    if (!rootNode) {
-      rootNode = createNode("root");
-      currentNode = rootNode;
-    }
-
-    if (!currentNode) {
-      throw new Error("Invalid component hierarchy");
-    }
-
     let childNode = currentNode.children.get(componentId);
     if (!childNode) {
       childNode = createNode(componentId, currentNode);
       currentNode.children.set(componentId, childNode);
     }
 
-    nodeStack.push(currentNode);
     currentNode = childNode;
     currentNode.hookIndex = 0;
   }
 
   function exitComponent() {
-    const parentNode = nodeStack.pop();
+    if (!currentNode) return;
+
+    const parentNode = currentNode.parent;
+
     if (parentNode) {
       currentNode = parentNode;
     }
@@ -110,29 +129,14 @@ export function React() {
     props: Props,
     children: Component[]
   ): Component {
-    const componentId = generateComponentId(tag, props);
-    enterComponent(componentId);
-
     if (tag.name === "Suspense") {
       return createSuspenseElement(tag, props, children);
     }
 
-    const hooksHash = currentNode
-      ? hash(safeStringify(currentNode.hooks))
-      : "0";
-    const memoKey = `${componentId}_${hooksHash}`;
-
-    let result = memoCache.get(memoKey);
-    if (!result) {
-      result = {
-        tag,
-        props: mergeProps(props, { children }),
-      };
-      memoCache.set(memoKey, result);
-    }
-
-    exitComponent();
-    return result;
+    return {
+      tag,
+      props: mergeProps(props, { children }),
+    };
   }
 
   function createSuspenseElement(
@@ -140,18 +144,17 @@ export function React() {
     props: Props,
     children: Component[]
   ) {
-    const suspenseId = generateComponentId(tag, props);
     const promiseCache = new Map();
 
-    if (!suspenseMap.has(suspenseId)) {
-      suspenseMap.set(suspenseId, promiseCache);
+    if (!suspenseMap.has(currentNode.id)) {
+      suspenseMap.set(currentNode.id, promiseCache);
     }
 
     return {
       tag,
       props: mergeProps(props, { children }),
       __suspense: {
-        id: suspenseId,
+        id: currentNode.id,
         fallback: props.fallback,
         promiseCache,
       },
@@ -160,9 +163,10 @@ export function React() {
 
   function createResource<T>(
     promiseFn: () => Promise<T>,
-    key: string | number
+    key: string | number,
+    hookNode: HookNode
   ) {
-    const promiseCache = getCurrentSuspenseBoundary(currentNode);
+    const promiseCache = getCurrentSuspenseBoundary(hookNode);
 
     if (!promiseCache.has(key)) {
       promiseCache.set(
@@ -184,38 +188,55 @@ export function React() {
       throw { promise: value, key };
     }
 
-    return value;
+    return value as T;
   }
 
-  function enqueueUpdate(update: (arg0: unknown) => void, index: number) {
-    updateQueue.push(() => {
-      if (currentNode) {
-        const componentId = currentNode.id;
-        const newState = update(currentNode.hooks[index]);
-        currentNode.hooks[index] = newState;
-        memoCache.delete(
-          `${componentId}_${hash(safeStringify(currentNode.hooks))}`
-        );
+  function enqueueUpdate(
+    update: (arg0: unknown) => void,
+    index: number,
+    hookNode: HookNode
+  ) {
+    if (!hookNode) {
+      throw new Error("enqueueUpdate called outside of component context");
+    }
+
+    hookNode.updateQueue.push(() => {
+      const componentId = hookNode?.id;
+      if (hookNode && componentId) {
+        const newState = update(hookNode.hooks[index]);
+        hookNode.hooks[index] = newState;
       }
     });
   }
 
-  function directUpdate(update: (arg0: unknown) => void, index: number) {
-    if (currentNode) {
-      const newState = update(currentNode.hooks[index]);
-      currentNode.hooks[index] = newState;
+  function directUpdate(
+    update: (arg0: unknown) => void,
+    index: number,
+    hookNode: HookNode
+  ) {
+    if (hookNode) {
+      const newState = update(hookNode.hooks[index]);
+      hookNode.hooks[index] = newState;
     }
   }
 
   function flushUpdate() {
-    let update: () => void;
-    update = updateQueue.shift();
+    processNodeUpdates(rootNode);
+    resetHookIndices(rootNode);
+  }
+
+  function processNodeUpdates(node: HookNode | null) {
+    if (!node) return;
+
+    let update = node.updateQueue.pop();
     while (update) {
       update();
-      update = updateQueue.shift();
+      update = node.updateQueue.pop();
     }
 
-    resetHookIndices(rootNode);
+    for (const [_, child] of node.children) {
+      processNodeUpdates(child);
+    }
   }
 
   function resetHookIndices(node: HookNode | null) {
@@ -238,25 +259,37 @@ export function React() {
     if (!currentNode) {
       throw new Error("getStateForIndex called outside of component context");
     }
-    return currentNode.hooks[index] as T;
+    return [currentNode.hooks[index] as T, currentNode] as const;
   }
 
-  function setStateForIndex(index: number, newState: unknown) {
-    if (!currentNode) {
+  function setStateForIndex(
+    index: number,
+    newState: unknown,
+    hookNode: HookNode
+  ) {
+    if (!hookNode) {
       throw new Error("setStateForIndex called outside of component context");
     }
-    currentNode.hooks[index] = newState;
+    hookNode.hooks[index] = newState;
   }
 
-  function setContextValue(contextId: symbol, value: unknown) {
-    if (!currentNode) {
+  function setContextValue(
+    contextId: symbol,
+    value: unknown,
+    hookNode: HookNode
+  ) {
+    if (!hookNode) {
       throw new Error("setContextValue called outside of component context");
     }
-    currentNode.contexts.set(contextId, value);
+    hookNode.contexts.set(contextId, value);
   }
 
-  function getClosestContextValue<T>(contextId: symbol, defaultValue: T): T {
-    let node = currentNode;
+  function getClosestContextValue<T>(
+    contextId: symbol,
+    defaultValue: T,
+    hookNode: HookNode
+  ): T {
+    let node = hookNode;
     while (node) {
       if (node.contexts.has(contextId)) {
         return node.contexts.get(contextId) as T;
@@ -270,6 +303,7 @@ export function React() {
   return {
     Fragment: Symbol.for("react.fragment"),
     generateComponentId,
+    debugComponentTree,
     mergeProps,
     createResource,
     createElement,
@@ -281,10 +315,14 @@ export function React() {
     getStateForIndex,
     setContextValue,
     getClosestContextValue,
+    getCurrentNode,
+    enterComponent,
+    exitComponent,
   };
 }
 
 const react = React();
+globalThis.React = react;
 export default react;
 
 export const {
@@ -311,27 +349,20 @@ export {
 } from "./ReactHooks";
 export { Suspense } from "./ReactExotic";
 
-export function generateComponentId(tag: SyncTag, props: Props): string {
+export function generateComponentId(
+  tag: SyncTag,
+  props: Props,
+  parentId: string
+): string {
   const tagName = typeof tag === "function" ? tag.name || "Anonymous" : tag;
-  const key = props.key || hash(safeStringify(props));
-  return `${tagName}_${key}`;
+  const key = props.key;
+  const result = [tagName, key, parentId].filter(Boolean).join("-");
+  return hash(result);
 }
 
 function hash(str: string) {
-  return str.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-}
-
-function safeStringify(obj: unknown) {
-  const seen = new WeakSet();
-  return JSON.stringify(
-    obj,
-    (_, value) => {
-      if (typeof value === "object" && value !== null) {
-        if (seen.has(value)) return;
-        seen.add(value);
-      }
-      return value;
-    },
-    2
-  );
+  return str
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    .toString();
 }

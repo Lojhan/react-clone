@@ -1,6 +1,6 @@
 import React from "./React";
 import { isFragment, isPrimitive, isSuspenseComponent } from "./helpers";
-import type { Component, Props } from "./types";
+import type { Component, Props, SyncTag } from "./types";
 
 type VNode = {
   type: string | ((props: unknown) => unknown) | symbol;
@@ -72,6 +72,15 @@ function createVirtualTree(component: Component): VNode | null {
   }
 
   if (isSuspenseComponent(component)) {
+    const parentId = React.getCurrentNode().id;
+    const componentId = React.generateComponentId(
+      component.tag as SyncTag,
+      component.props,
+      parentId
+    );
+
+    React.enterComponent(componentId);
+
     const children = [];
 
     for (const child of component.props.children) {
@@ -81,7 +90,10 @@ function createVirtualTree(component: Component): VNode | null {
           children.push(childTree);
         }
       } catch (e) {
-        return createVirtualTree(component.__suspense.fallback);
+        const result = createVirtualTree(component.__suspense.fallback);
+        return result;
+      } finally {
+        React.exitComponent();
       }
     }
 
@@ -95,8 +107,18 @@ function createVirtualTree(component: Component): VNode | null {
   }
 
   if (typeof component.tag === "function") {
+    const parentId = React.getCurrentNode().id;
+    const componentId = React.generateComponentId(
+      component.tag as SyncTag,
+      component.props,
+      parentId
+    );
+
+    React.enterComponent(componentId);
     const el = component.tag(component.props) as Component;
-    return createVirtualTree(el);
+    const result = createVirtualTree(el);
+    React.exitComponent();
+    return result;
   }
 
   return {
@@ -146,7 +168,10 @@ function renderToDOM(
     return;
   }
 
-  if (oldvnode.type !== newvnode.type) {
+  if (
+    oldvnode.type !== newvnode.type ||
+    !Object.is(oldvnode.props.value, newvnode.props.value) // make this better later
+  ) {
     if (oldvnode?.domElement.parentNode) {
       oldvnode.domElement.parentNode.removeChild(oldvnode.domElement);
     }
@@ -167,12 +192,12 @@ function renderToDOM(
     const domElement = oldvnode.domElement as HTMLElement;
     newvnode.domElement = domElement;
 
-    updateDomElement(domElement, oldvnode.props, newvnode.props);
+    updateDomElement(newvnode.domElement, oldvnode.props, newvnode.props);
 
     const oldChildren = oldvnode.children || [];
     const newChildren = newvnode.children || [];
 
-    reconcileChildren(oldChildren, newChildren, domElement);
+    reconcileChildren(oldChildren, newChildren, newvnode.domElement);
     return;
   }
 
@@ -250,29 +275,79 @@ function createOrUpdateDomElement(
       ? document.createElement(tag)
       : (tag as HTMLElement);
 
+  // Clean up old properties and event handlers
   if (oldProps) {
-    const keysToRemove = Object.keys(oldProps).filter(
-      (key) => key !== "children" && !(key in newProps)
-    );
-    for (const key of keysToRemove) {
-      element[key.toLowerCase()] = "";
+    // Remove old event handlers
+    for (const key of Object.keys(oldProps)) {
+      if (key.startsWith("on") && typeof oldProps[key] === "function") {
+        const eventType = key.toLowerCase().substring(2);
+        element.removeEventListener(eventType, oldProps[key]);
+      }
+    }
+
+    // Remove attributes that don't exist in new props
+    for (const key of Object.keys(oldProps).filter(
+      (key) =>
+        key !== "children" &&
+        key !== "style" &&
+        key !== "className" &&
+        !key.startsWith("on") &&
+        !(key in newProps)
+    )) {
+      element.removeAttribute(key.toLowerCase());
+    }
+
+    // Clear style if new props don't have it
+    if (oldProps.style && !newProps.style) {
+      element.removeAttribute("style");
+    }
+
+    // Clear className if new props don't have it
+    if (oldProps.className && !newProps.className) {
+      element.className = "";
     }
   }
 
-  const propsToUpdate = Object.keys(newProps).filter(
-    (key) => key !== "children"
-  );
-
-  for (const key of propsToUpdate) {
-    if (!oldProps || element[key.toLowerCase()] !== newProps[key]) {
-      element[key.toLowerCase()] = newProps[key];
+  // Set new properties and event handlers
+  for (const key of Object.keys(newProps).filter((key) => key !== "children")) {
+    // Handle event listeners
+    if (key.startsWith("on") && typeof newProps[key] === "function") {
+      const eventType = key.toLowerCase().substring(2);
+      if (oldProps && typeof oldProps[key] === "function") {
+        element.removeEventListener(eventType, oldProps[key]);
+      }
+      element.addEventListener(eventType, newProps[key]);
+    }
+    // Handle regular attributes
+    else if (key !== "style" && key !== "ref" && key !== "className") {
+      // Handle boolean attributes properly
+      if (typeof newProps[key] === "boolean") {
+        if (newProps[key]) {
+          element.setAttribute(key.toLowerCase(), "");
+        } else {
+          element.removeAttribute(key.toLowerCase());
+        }
+      } else {
+        element.setAttribute(key.toLowerCase(), newProps[key]);
+      }
     }
   }
 
+  // Handle style separately
   if (newProps.style) {
     if (typeof newProps.style === "string") {
       element.style.cssText = newProps.style;
     } else if (typeof newProps.style === "object") {
+      // Clear any old styles first if updating
+      if (oldProps?.style && typeof oldProps.style === "object") {
+        for (const styleKey of Object.keys(oldProps.style)) {
+          if (!newProps.style[styleKey]) {
+            element.style[styleKey] = "";
+          }
+        }
+      }
+
+      // Set new styles
       for (const styleKey of Object.keys(newProps.style)) {
         const styleValue = newProps.style[styleKey];
         if (styleValue !== undefined) {
@@ -282,15 +357,17 @@ function createOrUpdateDomElement(
     }
   }
 
-  const classList =
-    newProps.className?.split(" ").filter((e: string) => e !== "") ?? [];
-  if (classList.length > 0) {
-    if (oldProps?.className) {
-      element.className = "";
+  // Handle className
+  if (newProps.className !== undefined) {
+    const classList = newProps.className
+      .split(" ")
+      .filter((e: string) => e !== "");
+    if (classList.length > 0) {
+      element.className = classList.join(" ");
     }
-    element.classList.add(...classList);
   }
 
+  // Handle ref
   if (newProps.ref) {
     newProps.ref.current = element;
   }

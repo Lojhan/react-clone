@@ -3,8 +3,10 @@ import React, {
   use,
   useCallback,
   useContext,
+  useImperativeHandle,
   useMemo,
   useReducer,
+  useRef,
   useState,
 } from "../src/React";
 
@@ -43,7 +45,9 @@ type RecursiveKeys<T> = {
     : K & string;
 }[keyof T];
 
-type Case = `update.${RecursiveKeys<UserFormContextType>}`;
+type Key = RecursiveKeys<UserFormContextType>;
+
+type Case = `update.${Key}`;
 
 function formReducer(
   state: UserFormContextType,
@@ -139,7 +143,7 @@ export function FullExample() {
 
   return (
     <UserFormContext.Provider value={value}>
-      <FormWrapper key={currentPage}>
+      <FormWrapper>
         <h1>{pagenames[currentPage]}</h1>
         <FormComponent />
       </FormWrapper>
@@ -165,17 +169,19 @@ function FormWrapper(params) {
   );
 }
 
-function Input(props: { name: Case; label: string; type?: string }) {
-  const { formData, dispatch } = use(UserFormContext, "UserFormContext");
+function Input(props: { name: Key; label: string; type?: string }) {
+  const { formData, dispatch } = useContext(UserFormContext);
 
   const handleChange = useCallback(
     (e) =>
       dispatch({
-        type: props.name,
+        type: `update.${props.name}`,
         payload: e.target.value,
       }),
     [dispatch, props.name]
   );
+
+  const [mainKey, subKey] = props.name.split(".");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
@@ -186,7 +192,7 @@ function Input(props: { name: Case; label: string; type?: string }) {
         id={props.name}
         type={props.type}
         key={props.name}
-        defaultValue={formData[props.name] || ""}
+        value={formData[mainKey][subKey] || ""}
         onChange={handleChange}
         style={{
           padding: "10px 5px",
@@ -213,11 +219,11 @@ function BasicForm() {
   const { setCurrentPage } = useContext(UserFormContext);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-      <Input name="update.basicData.firstName" label="First Name" type="text" />
-      <Input name="update.basicData.lastName" label="Last Name" type="text" />
-      <Input name="update.basicData.email" label="Email" type="email" />
-      <Input name="update.basicData.phone" label="Phone" type="tel" />
+    <div>
+      <Input name="basicData.firstName" label="First Name" type="text" />
+      <Input name="basicData.lastName" label="Last Name" type="text" />
+      <Input name="basicData.email" label="Email" type="email" />
+      <Input name="basicData.phone" label="Phone" type="tel" />
       <button
         type="button"
         style={buttonStyle}
@@ -234,10 +240,10 @@ function AddressForm() {
 
   return (
     <div>
-      <Input name="update.addressData.street" label="Street" type="text" />
-      <Input name="update.addressData.city" label="City" type="text" />
-      <Input name="update.addressData.state" label="State" type="text" />
-      <Input name="update.addressData.zip" label="Zip Code" type="text" />
+      <Input name="addressData.street" label="Street" type="text" />
+      <Input name="addressData.city" label="City" type="text" />
+      <Input name="addressData.state" label="State" type="text" />
+      <Input name="addressData.zip" label="Zip Code" type="text" />
       <button
         type="button"
         style={buttonStyle}
@@ -251,31 +257,35 @@ function AddressForm() {
 
 function PaymentForm() {
   const { submit } = useContext(UserFormContext);
+  const ref = useRef(null);
+
+  function handleClick() {
+    submit();
+    ref.current.open();
+  }
+
   return (
     <div>
-      <UserDataModal />
-      <Input
-        name="update.paymentData.cardNumber"
-        label="Card Number"
-        type="text"
-      />
-      <Input
-        name="update.paymentData.cardExpiry"
-        label="Card Expiry"
-        type="text"
-      />
-      <Input name="update.paymentData.cardCVC" label="Card CVC" type="text" />
-      <button type="button" style={buttonStyle} onClick={submit}>
+      <UserDataModal ref={ref} />
+      <Input name="paymentData.cardNumber" label="Card Number" type="text" />
+      <Input name="paymentData.cardExpiry" label="Card Expiry" type="text" />
+      <Input name="paymentData.cardCVC" label="Card CVC" type="text" />
+      <button type="button" style={buttonStyle} onClick={handleClick}>
         Start Over
       </button>
     </div>
   );
 }
 
-function UserDataModal() {
+function UserDataModal(props) {
   const [visible, setModalVisible] = useState(false);
 
   const { formData, setCurrentPage } = useContext(UserFormContext);
+
+  useImperativeHandle(props.ref, () => ({
+    open: () => setModalVisible(true),
+    close: () => setModalVisible(false),
+  }));
 
   if (!visible) return null;
 

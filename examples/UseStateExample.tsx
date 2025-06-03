@@ -19,10 +19,10 @@ export function UseStateExample() {
         }}
       >
         <p>Current count: {count.toString()}</p>
-        <button type="button" onClick={() => setCount(count + 1)}>
+        <button type="button" onClick={() => setCount((prev) => prev + 1)}>
           Increment
         </button>
-        <button type="button" onClick={() => setCount(count - 1)}>
+        <button type="button" onClick={() => setCount((prev) => prev - 1)}>
           Decrement
         </button>
       </div>
