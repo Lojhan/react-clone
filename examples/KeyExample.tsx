@@ -21,12 +21,34 @@ export function KeyExample() {
   return (
     <div>
       <h1>Key Example</h1>
-      <button onClick={addItem}>Add Item</button>
-      <ul>
+      <button type="button" onClick={addItem}>
+        Add Item
+      </button>
+      <ul
+        style={{
+          maxWidth: "300px",
+          margin: "20px 0",
+          padding: 0,
+          listStyleType: "none",
+        }}
+      >
         {items.map((item) => (
-          <li key={item.id}>
+          <li
+            key={item.id}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             {item.text}
-            <button onClick={() => removeItem(item.id)}>Remove</button>
+            <button
+              type="button"
+              onClick={() => removeItem(item.id)}
+              style={{ background: "red", color: "white" }}
+            >
+              Remove
+            </button>
           </li>
         ))}
       </ul>

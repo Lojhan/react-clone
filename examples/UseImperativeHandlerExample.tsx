@@ -7,14 +7,16 @@ export function ImperativeHandleExample() {
     <div>
       <h1>useImperativeHandle</h1>
       <ExampleHandler ref={ref} />
-      <button onClick={() => ref.current.test()}>test</button>
+      <button type="button" onClick={() => ref.current.triggerAlert()}>
+        Click to Test
+      </button>
     </div>
   );
 }
 
 function ExampleHandler({ ref }) {
   useImperativeHandle(ref, () => ({
-    test: () => alert("ImperativeHandleExample"),
+    triggerAlert: () => alert("ImperativeHandleExample"),
   }));
 
   return (

@@ -15,7 +15,6 @@ const ExampleContext = createContext({
 });
 
 export function ContextExample() {
-  console.log("ContextExample rendered");
   return (
     <ExampleContextProvider>
       <div>

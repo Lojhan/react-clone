@@ -3,298 +3,297 @@ import { isFragment, isPrimitive, isSuspenseComponent } from "./helpers";
 import type { Component, Props } from "./types";
 
 type VNode = {
-	type: string | Function | Symbol;
-	props: Props;
-	children?: VNode[];
-	domElement?: HTMLElement | Text;
-	key?: string | number;
+  type: string | ((props: unknown) => unknown) | symbol;
+  props: Props;
+  children?: VNode[];
+  domElement?: HTMLElement | Text;
+  key?: string | number;
 };
 
 function ReactDOM() {
-	let _root: Component;
-	let _container: HTMLElement;
-	let _currentTree: VNode | null = null;
+  let _root: Component;
+  let _container: HTMLElement;
+  let _currentTree: VNode | null = null;
 
-	function renderRoot(root: Component, container: HTMLElement) {
-		if (!root) throw new Error("No root component provided");
-		React.flushUpdate();
+  function renderRoot(root: Component, container: HTMLElement) {
+    if (!root) throw new Error("No root component provided");
+    React.flushUpdate();
 
-		_root = root;
-		_container = container;
+    _root = root;
+    _container = container;
 
-		const newTree = createVirtualTree(_root);
+    const newTree = createVirtualTree(_root);
 
-		if (newTree) renderToDOM(newTree, _currentTree, container);
+    if (newTree) renderToDOM(newTree, _currentTree, container);
 
-		_currentTree = newTree;
-	}
+    _currentTree = newTree;
+  }
 
-	const rerender = () => renderRoot(_root, _container);
+  const rerender = () => renderRoot(_root, _container);
 
-	return {
-		renderRoot,
-		rerender,
-	};
+  return {
+    renderRoot,
+    rerender,
+  };
 }
 
 const _ReactDOM = ReactDOM();
 export default _ReactDOM;
 
 function createVirtualTree(component: Component): VNode | null {
-	if (!component) return null;
+  if (!component) return null;
 
-	if (isPrimitive(component)) {
-		return {
-			type: "TEXT_ELEMENT",
-			props: { nodeValue: component.toString() },
-			children: [],
-		};
-	}
+  if (isPrimitive(component)) {
+    return {
+      type: "TEXT_ELEMENT",
+      props: { nodeValue: component.toString() },
+      children: [],
+    };
+  }
 
-	if (Array.isArray(component)) {
-		return {
-			type: React.Fragment,
-			props: {},
-			children: component
-				.map((child) => createVirtualTree(child))
-				.filter((e) => e !== null),
-		};
-	}
+  if (Array.isArray(component)) {
+    return {
+      type: React.Fragment,
+      props: {},
+      children: component
+        .map((child) => createVirtualTree(child))
+        .filter((e) => e !== null),
+    };
+  }
 
-	if (isFragment(component.tag, component.props)) {
-		return {
-			type: React.Fragment,
-			props: component.props,
-			children: component.props.children
-				.map((child) => createVirtualTree(child))
-				.filter((e) => e !== null),
-		};
-	}
+  if (isFragment(component.tag, component.props)) {
+    return {
+      type: React.Fragment,
+      props: component.props,
+      children: component.props.children
+        .map((child) => createVirtualTree(child))
+        .filter((e) => e !== null),
+    };
+  }
 
-	if (isSuspenseComponent(component)) {
-		const children = [];
+  if (isSuspenseComponent(component)) {
+    const children = [];
 
-		for (const child of component.props.children) {
-			try {
-				const childTree = createVirtualTree(child);
-				if (childTree) {
-					children.push(childTree);
-				}
-			} catch (e) {
-        
-				return createVirtualTree(component.__suspense.fallback);
-			}
-		}
+    for (const child of component.props.children) {
+      try {
+        const childTree = createVirtualTree(child);
+        if (childTree) {
+          children.push(childTree);
+        }
+      } catch (e) {
+        return createVirtualTree(component.__suspense.fallback);
+      }
+    }
 
-		const result = {
-			type: React.Fragment,
-			props: component.props,
-			children,
-		};
+    const result = {
+      type: React.Fragment,
+      props: component.props,
+      children,
+    };
 
-		return result;
-	}
+    return result;
+  }
 
-	if (typeof component.tag === "function") {
-		const el = component.tag(component.props) as Component;
-		return createVirtualTree(el);
-	}
+  if (typeof component.tag === "function") {
+    const el = component.tag(component.props) as Component;
+    return createVirtualTree(el);
+  }
 
-	return {
-		type: component.tag,
-		props: component.props,
-		children: component.props.children
-			.map((child) => createVirtualTree(child))
-			.filter((e) => e !== null),
-	};
+  return {
+    type: component.tag,
+    props: component.props,
+    children: component.props.children
+      .map((child) => createVirtualTree(child))
+      .filter((e) => e !== null),
+  };
 }
 
 function renderToDOM(
-	newvnode: VNode | null,
-	oldvnode: VNode | null,
-	container: HTMLElement,
+  newvnode: VNode | null,
+  oldvnode: VNode | null,
+  container: HTMLElement
 ): void {
-	if (!newvnode) return;
+  if (!newvnode) return;
 
-	if (!oldvnode) {
-		if (newvnode.type === "TEXT_ELEMENT") {
-			const textNode = createTextNode(newvnode.props.nodeValue);
-			newvnode.domElement = textNode;
-			container.appendChild(textNode);
-			return;
-		}
+  if (!oldvnode) {
+    if (newvnode.type === "TEXT_ELEMENT") {
+      const textNode = createTextNode(newvnode.props.nodeValue);
+      newvnode.domElement = textNode;
+      container.appendChild(textNode);
+      return;
+    }
 
-		if (newvnode.type === React.Fragment) {
-			newvnode.children?.forEach((child, index) =>
-				renderToDOM(child, oldvnode?.children?.[index] || null, container),
-			);
-			return;
-		}
+    if (newvnode.type === React.Fragment) {
+      newvnode.children?.forEach((child, index) =>
+        renderToDOM(child, oldvnode?.children?.[index] || null, container)
+      );
+      return;
+    }
 
-		if (typeof newvnode.type === "string") {
-			const domElement = createDomElement(newvnode.type, newvnode.props);
-			newvnode.domElement = domElement;
-			container.appendChild(domElement);
+    if (typeof newvnode.type === "string") {
+      const domElement = createDomElement(newvnode.type, newvnode.props);
+      newvnode.domElement = domElement;
+      container.appendChild(domElement);
 
-			for (const child of newvnode.children || []) {
-				renderToDOM(
-					child,
-					oldvnode?.children?.find((c) => c.key === child.key) || null,
-					domElement,
-				);
-			}
-		}
-		return;
-	}
+      for (const child of newvnode.children || []) {
+        renderToDOM(
+          child,
+          oldvnode?.children?.find((c) => c.key === child.key) || null,
+          domElement
+        );
+      }
+    }
+    return;
+  }
 
-	if (oldvnode.type !== newvnode.type) {
-		if (oldvnode?.domElement.parentNode) {
-			oldvnode.domElement.parentNode.removeChild(oldvnode.domElement);
-		}
-		renderToDOM(newvnode, null, container);
-		return;
-	}
+  if (oldvnode.type !== newvnode.type) {
+    if (oldvnode?.domElement.parentNode) {
+      oldvnode.domElement.parentNode.removeChild(oldvnode.domElement);
+    }
+    renderToDOM(newvnode, null, container);
+    return;
+  }
 
-	if (newvnode.type === "TEXT_ELEMENT") {
-		const textNode = oldvnode.domElement as Text;
-		if (textNode.nodeValue !== newvnode.props.nodeValue) {
-			textNode.nodeValue = newvnode.props.nodeValue;
-		}
-		newvnode.domElement = textNode;
-		return;
-	}
+  if (newvnode.type === "TEXT_ELEMENT") {
+    const textNode = oldvnode.domElement as Text;
+    if (textNode.nodeValue !== newvnode.props.nodeValue) {
+      textNode.nodeValue = newvnode.props.nodeValue;
+    }
+    newvnode.domElement = textNode;
+    return;
+  }
 
-	if (typeof newvnode.type === "string") {
-		const domElement = oldvnode.domElement as HTMLElement;
-		newvnode.domElement = domElement;
+  if (typeof newvnode.type === "string") {
+    const domElement = oldvnode.domElement as HTMLElement;
+    newvnode.domElement = domElement;
 
-		updateDomElement(domElement, oldvnode.props, newvnode.props);
+    updateDomElement(domElement, oldvnode.props, newvnode.props);
 
-		const oldChildren = oldvnode.children || [];
-		const newChildren = newvnode.children || [];
+    const oldChildren = oldvnode.children || [];
+    const newChildren = newvnode.children || [];
 
-		reconcileChildren(oldChildren, newChildren, domElement);
-		return;
-	}
+    reconcileChildren(oldChildren, newChildren, domElement);
+    return;
+  }
 
-	if (newvnode.type === React.Fragment) {
-		const oldChildren = oldvnode.children || [];
-		const newChildren = newvnode.children || [];
+  if (newvnode.type === React.Fragment) {
+    const oldChildren = oldvnode.children || [];
+    const newChildren = newvnode.children || [];
 
-		reconcileChildren(oldChildren, newChildren, container);
-		return;
-	}
+    reconcileChildren(oldChildren, newChildren, container);
+    return;
+  }
 }
 
 function reconcileChildren(
-	oldChildren: VNode[],
-	newChildren: VNode[],
-	container: HTMLElement,
+  oldChildren: VNode[],
+  newChildren: VNode[],
+  container: HTMLElement
 ): void {
-	const oldChildrenMap: Map<string | number, VNode> = new Map();
-	const oldChildrenWithoutKey: VNode[] = [];
+  const oldChildrenMap: Map<string | number, VNode> = new Map();
+  const oldChildrenWithoutKey: VNode[] = [];
 
-	for (const child of oldChildren) {
-		if (child.key != null) {
-			oldChildrenMap.set(child.key, child);
-		} else {
-			oldChildrenWithoutKey.push(child);
-		}
-	}
+  for (const child of oldChildren) {
+    if (child.key != null) {
+      oldChildrenMap.set(child.key, child);
+    } else {
+      oldChildrenWithoutKey.push(child);
+    }
+  }
 
-	const processedOldNodes = new Set();
+  const processedOldNodes = new Set();
 
-	newChildren.forEach((newChild, i) => {
-		let oldChild = null;
+  newChildren.forEach((newChild, i) => {
+    let oldChild = null;
 
-		if (newChild.key != null && oldChildrenMap.has(newChild.key)) {
-			oldChild = oldChildrenMap.get(newChild.key);
-			processedOldNodes.add(oldChild);
-		} else {
-			oldChild = oldChildrenWithoutKey[i] || null;
-			if (oldChild) processedOldNodes.add(oldChild);
-		}
+    if (newChild.key != null && oldChildrenMap.has(newChild.key)) {
+      oldChild = oldChildrenMap.get(newChild.key);
+      processedOldNodes.add(oldChild);
+    } else {
+      oldChild = oldChildrenWithoutKey[i] || null;
+      if (oldChild) processedOldNodes.add(oldChild);
+    }
 
-		renderToDOM(newChild, oldChild, container);
-	});
+    renderToDOM(newChild, oldChild, container);
+  });
 
-	for (const oldChild of oldChildren) {
-		if (!processedOldNodes.has(oldChild) && oldChild.domElement) {
-			oldChild.domElement.parentNode?.removeChild(oldChild.domElement);
-		}
-	}
+  for (const oldChild of oldChildren) {
+    if (!processedOldNodes.has(oldChild) && oldChild.domElement) {
+      oldChild.domElement.parentNode?.removeChild(oldChild.domElement);
+    }
+  }
 }
 
 function createTextNode(value: string | number) {
-	return document.createTextNode(value.toString());
+  return document.createTextNode(value.toString());
 }
 
 function createDomElement(tag: string, props: Props): HTMLElement {
-	return createOrUpdateDomElement(tag, props);
+  return createOrUpdateDomElement(tag, props);
 }
 
 function updateDomElement(
-	element: HTMLElement,
-	oldProps: Props,
-	newProps: Props,
+  element: HTMLElement,
+  oldProps: Props,
+  newProps: Props
 ) {
-	createOrUpdateDomElement(element, newProps, oldProps);
+  createOrUpdateDomElement(element, newProps, oldProps);
 }
 
 function createOrUpdateDomElement(
-	tag: string | HTMLElement,
-	newProps: Props,
-	oldProps?: Props,
+  tag: string | HTMLElement,
+  newProps: Props,
+  oldProps?: Props
 ): HTMLElement {
-	const element =
-		typeof tag === "string"
-			? document.createElement(tag)
-			: (tag as HTMLElement);
+  const element =
+    typeof tag === "string"
+      ? document.createElement(tag)
+      : (tag as HTMLElement);
 
-	if (oldProps) {
-		const keysToRemove = Object.keys(oldProps).filter(
-			(key) => key !== "children" && !(key in newProps),
-		);
-		for (const key of keysToRemove) {
-			element[key.toLowerCase()] = "";
-		}
-	}
+  if (oldProps) {
+    const keysToRemove = Object.keys(oldProps).filter(
+      (key) => key !== "children" && !(key in newProps)
+    );
+    for (const key of keysToRemove) {
+      element[key.toLowerCase()] = "";
+    }
+  }
 
-	const propsToUpdate = Object.keys(newProps).filter(
-		(key) => key !== "children",
-	);
+  const propsToUpdate = Object.keys(newProps).filter(
+    (key) => key !== "children"
+  );
 
-	for (const key of propsToUpdate) {
-		if (!oldProps || element[key.toLowerCase()] !== newProps[key]) {
-			element[key.toLowerCase()] = newProps[key];
-		}
-	}
+  for (const key of propsToUpdate) {
+    if (!oldProps || element[key.toLowerCase()] !== newProps[key]) {
+      element[key.toLowerCase()] = newProps[key];
+    }
+  }
 
-	if (newProps.style) {
-		if (typeof newProps.style === "string") {
-			element.style.cssText = newProps.style;
-		} else if (typeof newProps.style === "object") {
-			for (const styleKey of Object.keys(newProps.style)) {
-				const styleValue = newProps.style[styleKey];
-				if (styleValue !== undefined) {
-					element.style[styleKey] = styleValue;
-				}
-			}
-		}
-	}
+  if (newProps.style) {
+    if (typeof newProps.style === "string") {
+      element.style.cssText = newProps.style;
+    } else if (typeof newProps.style === "object") {
+      for (const styleKey of Object.keys(newProps.style)) {
+        const styleValue = newProps.style[styleKey];
+        if (styleValue !== undefined) {
+          element.style[styleKey] = styleValue;
+        }
+      }
+    }
+  }
 
-	const classList =
-		newProps.className?.split(" ").filter((e: string) => e !== "") ?? [];
-	if (classList.length > 0) {
-		if (oldProps?.className) {
-			element.className = "";
-		}
-		element.classList.add(...classList);
-	}
+  const classList =
+    newProps.className?.split(" ").filter((e: string) => e !== "") ?? [];
+  if (classList.length > 0) {
+    if (oldProps?.className) {
+      element.className = "";
+    }
+    element.classList.add(...classList);
+  }
 
-	if (newProps.ref) {
-		newProps.ref.current = element;
-	}
+  if (newProps.ref) {
+    newProps.ref.current = element;
+  }
 
-	return element;
+  return element;
 }

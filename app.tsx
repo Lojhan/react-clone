@@ -5,6 +5,7 @@ import { UseEffectExample } from "./examples/UseEffectExample";
 import { ImperativeHandleExample } from "./examples/UseImperativeHandlerExample";
 import { UseStateExample } from "./examples/UseStateExample";
 import { KeyExample } from "./examples/KeyExample";
+import { FullExample } from "./examples/FullExample";
 import React from "./src/React";
 
 const examples = [
@@ -13,7 +14,8 @@ const examples = [
   { title: "useImperativeHandle Example", example: ImperativeHandleExample, href: "useImperativeHandle" },
   { title: "Context Example", example: ContextExample, href: "context" },
   { title: "Key Example", example: KeyExample, href: "key" },
-  { title: "Suspense and use Example", example: LazyComponentExample, href: "lazyComponent" }
+  { title: "Suspense and use Example", example: LazyComponentExample, href: "lazyComponent" },
+  { title: "Full Example", example: FullExample, href: "fullExample" }
 ]
 
 export function App(props) {
@@ -30,7 +32,6 @@ export function App(props) {
         >
           {examples.map(example => (
             <li
-              style="cursor: pointer; color: blue; text-decoration: underline; list-style: none;"
               onClick={e => {
                 e.preventDefault();
                 window.location.href = `#${example.href}`;

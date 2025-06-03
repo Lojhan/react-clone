@@ -49,9 +49,8 @@ server.listen(3000, () => {
   console.log("listening SSR on port 3000");
 });
 
-
 async function renderToHTMLString(
-  component: Component | ReactComponent | Children,
+  component: Component | ReactComponent | Children
 ): Promise<string> {
   if (!component) return "";
 

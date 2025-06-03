@@ -4,7 +4,7 @@ import type { Children } from "./types";
 
 type State<T> = T | (() => T);
 type UpdateFunction<T> = (prevState: T) => T;
-type Callback = () => void | (() => void);
+type Callback = () => undefined | (() => void);
 
 export function useState<T>(
   initialState: State<T>
@@ -135,7 +135,7 @@ export function useCallback<T extends (...args: any[]) => any>(
 
 export function createContext<T>(defaultValue: T) {
   const contextId = Symbol("context");
-  
+
   return {
     _contextId: contextId,
     _currentValue: defaultValue,

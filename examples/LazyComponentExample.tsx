@@ -16,14 +16,23 @@ async function getTodos() {
 
 function LazyComponent() {
   const data = use<TODO[]>(getTodos, "promise");
+
   return (
-    <div>
+    <ul
+      style={{
+        listStyle: "none",
+        padding: 0,
+        margin: 0,
+        maxHeight: "400px",
+        overflowY: "auto",
+      }}
+    >
       {data.map((e) => (
-        <div key={e.id} style="display: flex; gap: 1rem">
+        <li key={e.id} style="display: flex; gap: 1rem">
           {e.title} - {e.completed ? "Completed" : "Pending"}
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
 
@@ -31,8 +40,9 @@ export function LazyComponentExample() {
   return (
     <div>
       <h1>Lazy Component Example</h1>
+      <p>This component fetches data lazily using use() hook.</p>
       <Suspense fallback={<div>Loading...</div>}>
-        Todos:
+        <h2>Todo List</h2>
         <LazyComponent />
       </Suspense>
     </div>
