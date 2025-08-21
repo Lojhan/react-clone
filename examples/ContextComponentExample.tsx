@@ -1,9 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from "../src/React";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useMemo } from "../src/ReactHooks";
 
 const buildMessage = () =>
@@ -40,7 +35,7 @@ function ExampleContextProvider(props) {
 
   const value = useMemo(
     () => ({ message, sendMessage }),
-    [message, sendMessage]
+    [message, sendMessage],
   );
 
   return (

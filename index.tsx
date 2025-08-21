@@ -1,5 +1,5 @@
-import React from "./src/React";
-import ReactDOM from "./src/ReactDOM";
+import ReactDOM from "reactDOM";
 import { App } from "./app";
 
-ReactDOM.renderRoot(<App />, document.getElementById("root"));
+const anchor = document.getElementById("root");
+ReactDOM.renderRoot(<App />, anchor);

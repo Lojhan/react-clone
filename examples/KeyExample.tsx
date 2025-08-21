@@ -1,20 +1,19 @@
-import React, { useState } from "../src/React";
+import { useState } from "react";
+
+const initialItems = Array.from({ length: 5 }, (_, i) => ({
+  id: i + 1,
+  text: `Item ${i + 1}`,
+}));
 
 export function KeyExample() {
-  const [items, setItems] = useState([
-    { id: 1, text: "Item 1" },
-    { id: 2, text: "Item 2" },
-    { id: 3, text: "Item 3" },
-    { id: 4, text: "Item 4" },
-    { id: 5, text: "Item 5" },
-  ]);
+  const [items, setItems] = useState(initialItems);
 
   function addItem() {
     const newItem = { id: items.length + 1, text: `Item ${items.length + 1}` };
     setItems((prevItems) => [...prevItems, newItem]);
   }
 
-  function removeItem(id) {
+  function removeItem(id: number) {
     setItems((prevItems) => prevItems.filter((item) => item.id !== id));
   }
 

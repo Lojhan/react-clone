@@ -1,6 +1,5 @@
-import React, {
+import {
   createContext,
-  use,
   useCallback,
   useContext,
   useImperativeHandle,
@@ -8,7 +7,7 @@ import React, {
   useReducer,
   useRef,
   useState,
-} from "../src/React";
+} from "react";
 
 type BasicData = {
   firstName: string;
@@ -47,12 +46,36 @@ type RecursiveKeys<T> = {
 
 type Key = RecursiveKeys<UserFormContextType>;
 
-type Case = `update.${Key}`;
+type Case = `update.${Key}` | "reset";
+
+const emptyForm: UserFormContextType = {
+  basicData: {
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+  },
+  addressData: {
+    street: "",
+    city: "",
+    state: "",
+    zip: "",
+  },
+  paymentData: {
+    cardNumber: "",
+    cardExpiry: "",
+    cardCVC: "",
+  },
+};
 
 function formReducer(
   state: UserFormContextType,
-  action: { type: Case; payload: string }
+  action: { type: Case; payload: string },
 ) {
+  if (action.type === "reset") {
+    return structuredClone(emptyForm);
+  }
+
   const keys = action.type.split(".").slice(1);
   let current = state;
 
@@ -104,25 +127,10 @@ const FormMap = {
 
 export function FullExample() {
   const [currentPage, setCurrentPage] = useState<Page>("basicData");
-  const [formData, dispatch] = useReducer(formReducer, {
-    basicData: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-    },
-    addressData: {
-      street: "",
-      city: "",
-      state: "",
-      zip: "",
-    },
-    paymentData: {
-      cardNumber: "",
-      cardExpiry: "",
-      cardCVC: "",
-    },
-  });
+  const [formData, dispatch] = useReducer(
+    formReducer,
+    structuredClone(emptyForm),
+  );
 
   const FormComponent = FormMap[currentPage];
 
@@ -138,7 +146,7 @@ export function FullExample() {
       currentPage,
       submit,
     }),
-    [formData, dispatch, setCurrentPage, currentPage]
+    [formData, dispatch, setCurrentPage, currentPage],
   );
 
   return (
@@ -178,7 +186,7 @@ function Input(props: { name: Key; label: string; type?: string }) {
         type: `update.${props.name}`,
         payload: e.target.value,
       }),
-    [dispatch, props.name]
+    [dispatch, props.name],
   );
 
   const [mainKey, subKey] = props.name.split(".");
@@ -259,10 +267,10 @@ function PaymentForm() {
   const { submit } = useContext(UserFormContext);
   const ref = useRef(null);
 
-  function handleClick() {
+  const handleClick = useCallback(() => {
     submit();
     ref.current.open();
-  }
+  }, [submit, ref]);
 
   return (
     <div>
@@ -271,23 +279,29 @@ function PaymentForm() {
       <Input name="paymentData.cardExpiry" label="Card Expiry" type="text" />
       <Input name="paymentData.cardCVC" label="Card CVC" type="text" />
       <button type="button" style={buttonStyle} onClick={handleClick}>
-        Start Over
+        Show User Data
       </button>
     </div>
   );
 }
 
-function UserDataModal(props) {
+function UserDataModal({ ref }) {
   const [visible, setModalVisible] = useState(false);
 
-  const { formData, setCurrentPage } = useContext(UserFormContext);
+  const { formData, setCurrentPage, dispatch } = useContext(UserFormContext);
 
-  useImperativeHandle(props.ref, () => ({
+  useImperativeHandle(ref, () => ({
     open: () => setModalVisible(true),
     close: () => setModalVisible(false),
   }));
 
   if (!visible) return null;
+
+  const handleClick = useCallback(() => {
+    setModalVisible(false);
+    setCurrentPage("basicData");
+    dispatch({ type: "reset", payload: "" });
+  }, [setModalVisible, setCurrentPage, dispatch]);
 
   return (
     <div
@@ -304,14 +318,7 @@ function UserDataModal(props) {
     >
       <h2>User Data</h2>
       <pre>{JSON.stringify(formData, null, 2)}</pre>
-      <button
-        type="button"
-        onClick={() => {
-          setModalVisible(false);
-          setCurrentPage("basicData");
-        }}
-        style={buttonStyle}
-      >
+      <button type="button" onClick={handleClick} style={buttonStyle}>
         Start Over
       </button>
     </div>

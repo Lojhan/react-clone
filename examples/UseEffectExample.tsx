@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "../src/React";
+import { useEffect, useState } from "react";
 
 export function UseEffectExample() {
   const [count, setCount] = useState(0);
@@ -6,10 +6,10 @@ export function UseEffectExample() {
   useEffect(() => {
     console.log("useEffect - Updating document title");
     document.title = `You clicked ${count} times`;
-	return () => {
-	  console.log("useEffect cleanup - Resetting document title");
-	  document.title = "React App";
-	};
+    return () => {
+      console.log("useEffect cleanup - Resetting document title");
+      document.title = "React App";
+    };
   }, [count]);
 
   return (

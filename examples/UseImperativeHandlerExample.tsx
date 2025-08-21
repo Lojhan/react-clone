@@ -1,4 +1,4 @@
-import React, { useImperativeHandle, useRef } from "../src/React";
+import { useImperativeHandle, useRef } from "react";
 
 export function ImperativeHandleExample() {
   const ref = useRef(null);

@@ -1,4 +1,3 @@
-
 import { ContextExample } from "./examples/ContextComponentExample";
 import { LazyComponentExample } from "./examples/LazyComponentExample";
 import { UseEffectExample } from "./examples/UseEffectExample";
@@ -6,45 +5,65 @@ import { ImperativeHandleExample } from "./examples/UseImperativeHandlerExample"
 import { UseStateExample } from "./examples/UseStateExample";
 import { KeyExample } from "./examples/KeyExample";
 import { FullExample } from "./examples/FullExample";
-import React from "./src/React";
+import { useCallback, useState } from "react";
 
 const examples = [
-  { title: "useState Example", example: UseStateExample, href: "useState" },
-  { title: "useEffect Example", example: UseEffectExample, href: "useEffect" },
-  { title: "useImperativeHandle Example", example: ImperativeHandleExample, href: "useImperativeHandle" },
-  { title: "Context Example", example: ContextExample, href: "context" },
-  { title: "Key Example", example: KeyExample, href: "key" },
-  { title: "Suspense and use Example", example: LazyComponentExample, href: "lazyComponent" },
-  { title: "Full Example", example: FullExample, href: "fullExample" }
-]
+  { title: "useState Example", component: UseStateExample, href: "useState" },
+  {
+    title: "useEffect Example",
+    component: UseEffectExample,
+    href: "useEffect",
+  },
+  {
+    title: "useImperativeHandle Example",
+    component: ImperativeHandleExample,
+    href: "useImperativeHandle",
+  },
+  { title: "Context Example", component: ContextExample, href: "context" },
+  { title: "Key Example", component: KeyExample, href: "key" },
+  {
+    title: "Suspense and use Example",
+    component: LazyComponentExample,
+    href: "lazyComponent",
+  },
+  { title: "Full Example", component: FullExample, href: "fullExample" },
+];
 
-export function App(props) {
+function getInitialExample() {
   const href = window.location.href.split("#")[1];
-  const example = examples.find(example => example.href === href) || examples[0];
-  const Example = example.example;
+  return examples.find((example) => example.href === href) || examples[0];
+}
+
+export function App() {
+  const [example, setExample] = useState(getInitialExample());
+  const Example = example.component;
+
+  const onClickExample = useCallback((e) => {
+    const href = e.target.getAttribute("href");
+    const newExample = examples.find((ex) => ex.href === href);
+    setExample(newExample);
+    window.location.href = `#${newExample.href}`;
+  }, []);
 
   return (
     <div style="display: flex; flex-direction: column; gap: 2rem; padding: 2rem;">
       <h1>React Examples</h1>
       <nav>
-        <ul
-          style="display: flex; gap: 1rem; padding: 0; margin: 0;"
-        >
-          {examples.map(example => (
+        <ul style="display: flex; gap: 1rem; padding: 0; margin: 0;">
+          {examples.map((example) => (
             <li
-              onClick={e => {
-                e.preventDefault();
-                window.location.href = `#${example.href}`;
-                window.location.reload();
-              }}
-            >{example.title}
+              onClick={onClickExample}
+              onKeyDown={onClickExample}
+              href={example.href}
+              key={example.href}
+            >
+              {example.title}
             </li>
           ))}
         </ul>
       </nav>
 
-
       <Example />
-    </div >
-  )
+    </div>
+  );
 }

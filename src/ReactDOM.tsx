@@ -17,7 +17,6 @@ function ReactDOM() {
 
   function renderRoot(root: Component, container: HTMLElement) {
     if (!root) throw new Error("No root component provided");
-    React.flushUpdate();
 
     _root = root;
     _container = container;
@@ -29,7 +28,10 @@ function ReactDOM() {
     _currentTree = newTree;
   }
 
-  const rerender = () => renderRoot(_root, _container);
+  function rerender() {
+    React.flushUpdate();
+    renderRoot(_root, _container);
+  }
 
   return {
     renderRoot,
@@ -76,7 +78,7 @@ function createVirtualTree(component: Component): VNode | null {
     const componentId = React.generateComponentId(
       component.tag as SyncTag,
       component.props,
-      parentId
+      parentId,
     );
 
     React.enterComponent(componentId);
@@ -111,7 +113,7 @@ function createVirtualTree(component: Component): VNode | null {
     const componentId = React.generateComponentId(
       component.tag as SyncTag,
       component.props,
-      parentId
+      parentId,
     );
 
     React.enterComponent(componentId);
@@ -133,7 +135,7 @@ function createVirtualTree(component: Component): VNode | null {
 function renderToDOM(
   newvnode: VNode | null,
   oldvnode: VNode | null,
-  container: HTMLElement
+  container: HTMLElement,
 ): void {
   if (!newvnode) return;
 
@@ -147,7 +149,7 @@ function renderToDOM(
 
     if (newvnode.type === React.Fragment) {
       newvnode.children?.forEach((child, index) =>
-        renderToDOM(child, oldvnode?.children?.[index] || null, container)
+        renderToDOM(child, oldvnode?.children?.[index] || null, container),
       );
       return;
     }
@@ -161,7 +163,7 @@ function renderToDOM(
         renderToDOM(
           child,
           oldvnode?.children?.find((c) => c.key === child.key) || null,
-          domElement
+          domElement,
         );
       }
     }
@@ -172,7 +174,7 @@ function renderToDOM(
     oldvnode.type !== newvnode.type ||
     !Object.is(oldvnode.props.value, newvnode.props.value) // make this better later
   ) {
-    if (oldvnode?.domElement.parentNode) {
+    if (oldvnode?.domElement?.parentNode) {
       oldvnode.domElement.parentNode.removeChild(oldvnode.domElement);
     }
     renderToDOM(newvnode, null, container);
@@ -213,7 +215,7 @@ function renderToDOM(
 function reconcileChildren(
   oldChildren: VNode[],
   newChildren: VNode[],
-  container: HTMLElement
+  container: HTMLElement,
 ): void {
   const oldChildrenMap: Map<string | number, VNode> = new Map();
   const oldChildrenWithoutKey: VNode[] = [];
@@ -260,7 +262,7 @@ function createDomElement(tag: string, props: Props): HTMLElement {
 function updateDomElement(
   element: HTMLElement,
   oldProps: Props,
-  newProps: Props
+  newProps: Props,
 ) {
   createOrUpdateDomElement(element, newProps, oldProps);
 }
@@ -268,7 +270,7 @@ function updateDomElement(
 function createOrUpdateDomElement(
   tag: string | HTMLElement,
   newProps: Props,
-  oldProps?: Props
+  oldProps?: Props,
 ): HTMLElement {
   const element =
     typeof tag === "string"
@@ -292,7 +294,7 @@ function createOrUpdateDomElement(
         key !== "style" &&
         key !== "className" &&
         !key.startsWith("on") &&
-        !(key in newProps)
+        !(key in newProps),
     )) {
       element.removeAttribute(key.toLowerCase());
     }

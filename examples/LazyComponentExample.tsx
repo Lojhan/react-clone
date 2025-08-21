@@ -1,4 +1,4 @@
-import React, { use, Suspense } from "../src/React";
+import { use, Suspense } from "react";
 
 type TODO = {
   userId: number;
@@ -11,11 +11,11 @@ async function getTodos() {
   const url = "https://jsonplaceholder.typicode.com/todos";
   const res = await fetch(url);
   await new Promise((resolve) => setTimeout(resolve, 2000));
-  return res.json();
+  return res.json() as Promise<TODO[]>;
 }
 
 function LazyComponent() {
-  const data = use<TODO[]>(getTodos, "promise");
+  const data = use(getTodos, "promise");
 
   return (
     <ul
