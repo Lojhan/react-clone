@@ -12,10 +12,12 @@ export function useState<T>(
   const hookIndex = React.getHookIndex();
   let [state, hookNode] = React.getStateForIndex<T>(hookIndex);
 
-  if (typeof initialState === "function" && !state) {
-    state = (initialState as () => T)();
-  } else if (!state) {
-    state = initialState as T;
+  if (state === undefined) {
+    if (typeof initialState === "function") {
+      state = (initialState as () => T)();
+    } else {
+      state = initialState as T;
+    }
     React.setStateForIndex(hookIndex, state, hookNode);
   }
 
@@ -23,8 +25,7 @@ export function useState<T>(
     if (typeof newState === "function") {
       React.enqueueUpdate(newState as UpdateFunction<T>, hookIndex, hookNode);
     } else {
-      React.directUpdate(() => newState, hookIndex, hookNode);
-      state = newState;
+      React.enqueueUpdate(() => newState, hookIndex, hookNode);
     }
 
     ReactDOM.rerender();
@@ -74,7 +75,7 @@ export function useRef<T>(initialValue: T) {
   const hookIndex = React.getHookIndex();
   let [ref, hookNode] = React.getStateForIndex(hookIndex);
 
-  if (!ref) {
+  if (ref === undefined) {
     ref = { current: initialValue };
     React.setStateForIndex(hookIndex, ref, hookNode);
   }
@@ -101,15 +102,13 @@ export function useReducer<T, A>(
   const hookIndex = React.getHookIndex();
   let [state, hookNode] = React.getStateForIndex<T>(hookIndex);
 
-  if (!state) {
+  if (state === undefined) {
     state = initialState;
     React.setStateForIndex(hookIndex, state, hookNode);
   }
 
   function dispatch(action: A) {
-    const newState = reducer(state, action);
-    React.enqueueUpdate(() => newState, hookIndex, hookNode);
-    state = newState;
+    React.enqueueUpdate((currentState: T) => reducer(currentState, action), hookIndex, hookNode);
     ReactDOM.rerender();
   }
 
@@ -140,16 +139,20 @@ export function useCallback<T extends (...args: any[]) => any>(
 }
 
 export function createContext<T>(defaultValue: T) {
-  const contextId = Symbol("context");
+  const contextId = Symbol("context-state");
 
+  function Provider(props: { children?: Children; value: T }) {
+    this[React.Context] = true;
+    const hookNode = React.getCurrentNode();
+    React.setContextValue(contextId, props.value ?? defaultValue, hookNode);
+    return <>{props.children}</>;
+  }
+
+  Provider[React.Context] = true;
   return {
     _contextId: contextId,
     _currentValue: defaultValue,
-    Provider(props: { children?: Children; value: T }) {
-      const hookNode = React.getCurrentNode();
-      React.setContextValue(contextId, props.value ?? defaultValue, hookNode);
-      return props.children ?? [];
-    },
+    Provider,
   };
 }
 

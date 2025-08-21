@@ -14,8 +14,18 @@ type HookNode = {
 
 export function React() {
   const rootNode: HookNode = createNode("root");
+  const activeNodes = new Set<string>();
   let currentNode: HookNode = rootNode;
-  enterComponent("root");
+  enterComponent(rootNode.id);
+  activeNodes.add(rootNode.id);
+  const FragmentSymbol: symbol = Symbol.for("react.fragment");
+  const ContextSymbol: symbol = Symbol.for("react.context");
+  const SuspenseSymbol: symbol = Symbol.for("react.suspense");
+
+  const suspenseCaches = new Map<
+    string,
+    Map<string | number, Promise<unknown> | unknown>
+  >();
 
   function getCurrentNode() {
     if (!currentNode) {
@@ -48,26 +58,40 @@ export function React() {
     Map<string | number, Promise<unknown> | unknown>
   > = new Map();
 
-  function getCurrentSuspenseBoundary(hookNode: HookNode) {
+  function getCurrentSuspenseBoundary(
+    hookNode: HookNode
+  ): Map<string | number, Promise<unknown> | unknown> {
     let _node = hookNode;
-    const item = suspenseMap.get(hookNode?.id || "");
-
-    if (item) {
-      return item;
-    }
 
     while (_node) {
-      const item = suspenseMap.get(_node.id);
-      if (item) {
-        return item;
+      const cache = suspenseCaches.get(_node.id);
+      if (cache) {
+        return cache;
       }
-
       _node = _node.parent;
     }
 
+    console.error(
+      "No suspense boundary found! Available caches:",
+      Array.from(suspenseCaches.keys())
+    );
     throw new Error(
       "No Suspense boundary found when calling getCurrentSuspenseBoundary"
     );
+  }
+
+  function createSuspenseCache(
+    componentId: string
+  ): Map<string | number, Promise<unknown> | unknown> {
+    const cache = new Map<string | number, Promise<unknown> | unknown>();
+    suspenseCaches.set(componentId, cache);
+    return cache;
+  }
+
+  function getSuspenseCache(
+    componentId: string
+  ): Map<string | number, Promise<unknown> | unknown> | undefined {
+    return suspenseCaches.get(componentId);
   }
 
   function createNode(id: string, parent?: HookNode): HookNode {
@@ -90,6 +114,7 @@ export function React() {
     }
 
     currentNode = childNode;
+    activeNodes.add(componentId);
     currentNode.hookIndex = 0;
   }
 
@@ -128,13 +153,16 @@ export function React() {
     tag: (props: Props, children: Component[]) => Component,
     props: Props,
     children: Component[]
-  ): Component {
+  ) {
     if (tag.name === "Suspense") {
       return createSuspenseElement(tag, props, children);
     }
 
+    const isContextElement = tag[ContextSymbol];
+
     return {
       tag,
+      [ContextSymbol]: isContextElement,
       props: mergeProps(props, { children }),
     };
   }
@@ -152,6 +180,7 @@ export function React() {
 
     return {
       tag,
+      [SuspenseSymbol]: true,
       props: mergeProps(props, { children }),
       __suspense: {
         id: currentNode.id,
@@ -169,18 +198,12 @@ export function React() {
     const promiseCache = getCurrentSuspenseBoundary(hookNode);
 
     if (!promiseCache.has(key)) {
-      promiseCache.set(
-        key,
-        new Promise((resolve, reject) => {
-          promiseFn()
-            .then((data) => {
-              promiseCache.set(key, data);
-              ReactDOM.rerender();
-              resolve(data);
-            })
-            .catch(reject);
-        })
-      );
+      const promise = promiseFn().then((data) => {
+        promiseCache.set(key, data);
+        ReactDOM.rerender();
+        return data;
+      });
+      promiseCache.set(key, promise);
     }
 
     const value = promiseCache.get(key);
@@ -223,6 +246,51 @@ export function React() {
   function flushUpdate() {
     processNodeUpdates(rootNode);
     resetHookIndices(rootNode);
+  }
+
+  function startRender() {
+    activeNodes.clear();
+    activeNodes.add("root");
+  }
+
+  function finishRender() {
+    cleanupUnusedNodes(rootNode);
+  }
+
+  function cleanupUnusedNodes(node: HookNode) {
+    if (!node) return;
+
+    const childrenToRemove = [];
+    for (const [childId, childNode] of node.children) {
+      if (!activeNodes.has(childId)) {
+        childrenToRemove.push(childId);
+        cleanupNodeSubtree(childNode);
+      } else {
+        cleanupUnusedNodes(childNode);
+      }
+    }
+
+    for (const childId of childrenToRemove) {
+      node.children.delete(childId);
+
+      if (suspenseMap.has(childId)) {
+        suspenseMap.delete(childId);
+      }
+    }
+  }
+
+  function cleanupNodeSubtree(node: HookNode) {
+    if (!node) return;
+
+    for (const [_, childNode] of node.children) {
+      cleanupNodeSubtree(childNode);
+    }
+
+    node.children.clear();
+    node.hooks = [];
+    node.hookIndex = 0;
+    node.updateQueue = [];
+    node.contexts.clear();
   }
 
   function processNodeUpdates(node: HookNode | null) {
@@ -301,7 +369,9 @@ export function React() {
   }
 
   return {
-    Fragment: Symbol.for("react.fragment"),
+    Fragment: FragmentSymbol,
+    Suspense: SuspenseSymbol,
+    Context: ContextSymbol,
     generateComponentId,
     debugComponentTree,
     mergeProps,
@@ -318,6 +388,10 @@ export function React() {
     getCurrentNode,
     enterComponent,
     exitComponent,
+    startRender,
+    finishRender,
+    createSuspenseCache,
+    getSuspenseCache,
   };
 }
 
@@ -356,13 +430,27 @@ export function generateComponentId(
 ): string {
   const tagName = typeof tag === "function" ? tag.name || "Anonymous" : tag;
   const key = props.key;
-  const result = [tagName, key, parentId].filter(Boolean).join("-");
+
+  const tagIdentifier =
+    typeof tag === "function" ? tag.toString().slice(0, 5) : tag;
+
+  const result = [tagName, key, tagIdentifier]
+    .filter(Boolean)
+    .map((e) => e?.toString())
+    .join("-");
+
   return hash(result);
 }
 
 function hash(str: string) {
-  return str
-    .split("")
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    .toString();
+  let hash = 0;
+  if (str.length === 0) return hash.toString();
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash;
+  }
+
+  return Math.abs(hash).toString(36);
 }

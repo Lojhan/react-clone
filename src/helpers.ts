@@ -1,3 +1,4 @@
+import React from "react";
 import type {
   AsyncTag,
   ReactComponent,
@@ -35,11 +36,7 @@ export function isSuspenseComponent(
     cleanup?: () => void;
   };
 } {
-  return (
-    "__suspense" in component &&
-    typeof component.__suspense === "object" &&
-    "fallback" in component.__suspense
-  );
+  return component[React.Suspense];
 }
 
 export function isPromise(value: unknown): value is Promise<unknown> {
@@ -48,6 +45,10 @@ export function isPromise(value: unknown): value is Promise<unknown> {
     typeof value === "object" &&
     typeof (value as Promise<unknown>).then === "function"
   );
+}
+
+export function isContextProvider(component: ReactComponent): boolean {
+  return component[React.Context];
 }
 
 export function joinChildren(...args: Children[]): Component[] {
