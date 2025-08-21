@@ -78,7 +78,7 @@ function createVirtualTree(component: Component): VNode | null {
     const componentId = React.generateComponentId(
       component.tag as SyncTag,
       component.props,
-      parentId,
+      parentId
     );
 
     React.enterComponent(componentId);
@@ -113,7 +113,7 @@ function createVirtualTree(component: Component): VNode | null {
     const componentId = React.generateComponentId(
       component.tag as SyncTag,
       component.props,
-      parentId,
+      parentId
     );
 
     React.enterComponent(componentId);
@@ -135,7 +135,7 @@ function createVirtualTree(component: Component): VNode | null {
 function renderToDOM(
   newvnode: VNode | null,
   oldvnode: VNode | null,
-  container: HTMLElement,
+  container: HTMLElement
 ): void {
   if (!newvnode) return;
 
@@ -149,7 +149,7 @@ function renderToDOM(
 
     if (newvnode.type === React.Fragment) {
       newvnode.children?.forEach((child, index) =>
-        renderToDOM(child, oldvnode?.children?.[index] || null, container),
+        renderToDOM(child, oldvnode?.children?.[index] || null, container)
       );
       return;
     }
@@ -163,7 +163,7 @@ function renderToDOM(
         renderToDOM(
           child,
           oldvnode?.children?.find((c) => c.key === child.key) || null,
-          domElement,
+          domElement
         );
       }
     }
@@ -172,7 +172,7 @@ function renderToDOM(
 
   if (
     oldvnode.type !== newvnode.type ||
-    !Object.is(oldvnode.props.value, newvnode.props.value) // make this better later
+    !Object.is(oldvnode.props.value, newvnode.props.value)
   ) {
     if (oldvnode?.domElement?.parentNode) {
       oldvnode.domElement.parentNode.removeChild(oldvnode.domElement);
@@ -215,7 +215,7 @@ function renderToDOM(
 function reconcileChildren(
   oldChildren: VNode[],
   newChildren: VNode[],
-  container: HTMLElement,
+  container: HTMLElement
 ): void {
   const oldChildrenMap: Map<string | number, VNode> = new Map();
   const oldChildrenWithoutKey: VNode[] = [];
@@ -262,7 +262,7 @@ function createDomElement(tag: string, props: Props): HTMLElement {
 function updateDomElement(
   element: HTMLElement,
   oldProps: Props,
-  newProps: Props,
+  newProps: Props
 ) {
   createOrUpdateDomElement(element, newProps, oldProps);
 }
@@ -270,16 +270,14 @@ function updateDomElement(
 function createOrUpdateDomElement(
   tag: string | HTMLElement,
   newProps: Props,
-  oldProps?: Props,
+  oldProps?: Props
 ): HTMLElement {
   const element =
     typeof tag === "string"
       ? document.createElement(tag)
       : (tag as HTMLElement);
 
-  // Clean up old properties and event handlers
   if (oldProps) {
-    // Remove old event handlers
     for (const key of Object.keys(oldProps)) {
       if (key.startsWith("on") && typeof oldProps[key] === "function") {
         const eventType = key.toLowerCase().substring(2);
@@ -287,42 +285,34 @@ function createOrUpdateDomElement(
       }
     }
 
-    // Remove attributes that don't exist in new props
     for (const key of Object.keys(oldProps).filter(
       (key) =>
         key !== "children" &&
         key !== "style" &&
         key !== "className" &&
         !key.startsWith("on") &&
-        !(key in newProps),
+        !(key in newProps)
     )) {
       element.removeAttribute(key.toLowerCase());
     }
 
-    // Clear style if new props don't have it
     if (oldProps.style && !newProps.style) {
       element.removeAttribute("style");
     }
 
-    // Clear className if new props don't have it
     if (oldProps.className && !newProps.className) {
       element.className = "";
     }
   }
 
-  // Set new properties and event handlers
   for (const key of Object.keys(newProps).filter((key) => key !== "children")) {
-    // Handle event listeners
     if (key.startsWith("on") && typeof newProps[key] === "function") {
       const eventType = key.toLowerCase().substring(2);
       if (oldProps && typeof oldProps[key] === "function") {
         element.removeEventListener(eventType, oldProps[key]);
       }
       element.addEventListener(eventType, newProps[key]);
-    }
-    // Handle regular attributes
-    else if (key !== "style" && key !== "ref" && key !== "className") {
-      // Handle boolean attributes properly
+    } else if (key !== "style" && key !== "ref" && key !== "className") {
       if (typeof newProps[key] === "boolean") {
         if (newProps[key]) {
           element.setAttribute(key.toLowerCase(), "");
@@ -335,12 +325,10 @@ function createOrUpdateDomElement(
     }
   }
 
-  // Handle style separately
   if (newProps.style) {
     if (typeof newProps.style === "string") {
       element.style.cssText = newProps.style;
     } else if (typeof newProps.style === "object") {
-      // Clear any old styles first if updating
       if (oldProps?.style && typeof oldProps.style === "object") {
         for (const styleKey of Object.keys(oldProps.style)) {
           if (!newProps.style[styleKey]) {
@@ -349,7 +337,6 @@ function createOrUpdateDomElement(
         }
       }
 
-      // Set new styles
       for (const styleKey of Object.keys(newProps.style)) {
         const styleValue = newProps.style[styleKey];
         if (styleValue !== undefined) {
@@ -359,7 +346,6 @@ function createOrUpdateDomElement(
     }
   }
 
-  // Handle className
   if (newProps.className !== undefined) {
     const classList = newProps.className
       .split(" ")
@@ -369,7 +355,6 @@ function createOrUpdateDomElement(
     }
   }
 
-  // Handle ref
   if (newProps.ref) {
     newProps.ref.current = element;
   }
