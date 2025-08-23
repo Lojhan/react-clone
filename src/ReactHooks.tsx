@@ -84,12 +84,11 @@ export function useRef<T>(initialValue: T) {
 }
 
 export function use<T>(
-  resource: ReturnType<typeof createContext<T>> | (() => Promise<T>),
-  key: string
+  resource: ReturnType<typeof createContext<T>> | (() => Promise<T>)
 ): T {
-  const hookNode = React.getCurrentNode();
   if (typeof resource === "function") {
-    return React.createResource(resource, key, hookNode);
+    const hookNode = React.getCurrentNode();
+    return React.createResource(resource, hookNode);
   }
 
   return useContext(resource);
@@ -108,7 +107,11 @@ export function useReducer<T, A>(
   }
 
   function dispatch(action: A) {
-    React.enqueueUpdate((currentState: T) => reducer(currentState, action), hookIndex, hookNode);
+    React.enqueueUpdate(
+      (currentState: T) => reducer(currentState, action),
+      hookIndex,
+      hookNode
+    );
     ReactDOM.rerender();
   }
 
@@ -130,8 +133,11 @@ export function useMemo<T>(factory: () => T, dependencies: unknown[]): T {
   return memoizedValue;
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: This is a custom implementation
-export function useCallback<T extends (...args: any[]) => any>(
+type Fn<T> = T extends (...args: infer P) => infer R
+  ? (...args: P) => R
+  : never;
+
+export function useCallback<T extends Fn<unknown>>(
   callback: T,
   dependencies: unknown[]
 ): T {

@@ -24,7 +24,7 @@ export function React() {
 
   const suspenseCaches = new Map<
     string,
-    Map<string | number, Promise<unknown> | unknown>
+    Map<string, Promise<unknown> | unknown>
   >();
 
   function getCurrentNode() {
@@ -37,22 +37,6 @@ export function React() {
     return currentNode;
   }
 
-  function debugComponentTree(node: HookNode = rootNode, depth = 0) {
-    const indent = "  ".repeat(depth + 1);
-    console.log(`
-    ${indent}Component: ${node.id} ${node.parent ? `-> ${node.parent.id}` : ""}
-    ${indent}   Hooks: ${node.hooks.length}
-    ${indent}   Hook Index: ${node.hookIndex}
-    ${indent}   Children: ${node.children.size}
-    ${indent}   Contexts: ${node.contexts.size}
-    ${indent}   Update Queue: ${node.updateQueue.length}
-    `);
-
-    for (const child of node.children.values()) {
-      debugComponentTree(child, depth + 1);
-    }
-  }
-
   const suspenseMap: Map<
     string,
     Map<string | number, Promise<unknown> | unknown>
@@ -60,7 +44,7 @@ export function React() {
 
   function getCurrentSuspenseBoundary(
     hookNode: HookNode
-  ): Map<string | number, Promise<unknown> | unknown> {
+  ): Map<string, Promise<unknown> | unknown> {
     let _node = hookNode;
 
     while (_node) {
@@ -82,15 +66,15 @@ export function React() {
 
   function createSuspenseCache(
     componentId: string
-  ): Map<string | number, Promise<unknown> | unknown> {
-    const cache = new Map<string | number, Promise<unknown> | unknown>();
+  ): Map<string, Promise<unknown> | unknown> {
+    const cache = new Map<string, Promise<unknown> | unknown>();
     suspenseCaches.set(componentId, cache);
     return cache;
   }
 
   function getSuspenseCache(
     componentId: string
-  ): Map<string | number, Promise<unknown> | unknown> | undefined {
+  ): Map<string, Promise<unknown> | unknown> | undefined {
     return suspenseCaches.get(componentId);
   }
 
@@ -190,11 +174,10 @@ export function React() {
     };
   }
 
-  function createResource<T>(
-    promiseFn: () => Promise<T>,
-    key: string | number,
-    hookNode: HookNode
-  ) {
+  function createResource<T>(promiseFn: () => Promise<T>, hookNode: HookNode) {
+    const hookIndex = hookNode.hookIndex;
+    const key = `${hookNode.id}:${hookIndex}`;
+
     const promiseCache = getCurrentSuspenseBoundary(hookNode);
 
     if (!promiseCache.has(key)) {
@@ -373,7 +356,6 @@ export function React() {
     Suspense: SuspenseSymbol,
     Context: ContextSymbol,
     generateComponentId,
-    debugComponentTree,
     mergeProps,
     createResource,
     createElement,

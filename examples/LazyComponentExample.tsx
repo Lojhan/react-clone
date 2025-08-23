@@ -15,7 +15,7 @@ async function getTodos() {
 }
 
 function LazyComponent() {
-  const data = use(getTodos, "promise");
+  const data = use(getTodos);
 
   return (
     <ul
