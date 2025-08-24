@@ -1,27 +1,27 @@
 import { useImperativeHandle, useRef } from "react";
 
 export function ImperativeHandleExample() {
-  const ref = useRef(null);
+	const ref = useRef(null);
 
-  return (
-    <div>
-      <h1>useImperativeHandle</h1>
-      <ExampleHandler ref={ref} />
-      <button type="button" onClick={() => ref.current.triggerAlert()}>
-        Click to Test
-      </button>
-    </div>
-  );
+	return (
+		<div>
+			<h1>useImperativeHandle</h1>
+			<ExampleHandler ref={ref} />
+			<button type="button" onClick={() => ref.current.triggerAlert()}>
+				Click to Test
+			</button>
+		</div>
+	);
 }
 
 function ExampleHandler({ ref }) {
-  useImperativeHandle(ref, () => ({
-    triggerAlert: () => alert("ImperativeHandleExample"),
-  }));
+	useImperativeHandle(ref, () => ({
+		triggerAlert: () => alert("ImperativeHandleExample"),
+	}));
 
-  return (
-    <div style="margin-block: 10px;">
-      Click the button to test the useImperativeHandle
-    </div>
-  );
+	return (
+		<div style="margin-block: 10px;">
+			Click the button to test the useImperativeHandle
+		</div>
+	);
 }

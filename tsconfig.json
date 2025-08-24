@@ -1,15 +1,15 @@
 {
-  "compilerOptions": {
-    "target": "es2016",
-    "jsx": "preserve",
-    "module": "commonjs",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": false,
-    "skipLibCheck": true,
-    "paths": {
-      "react": ["./src/React"],
-      "reactDOM": ["./src/ReactDOM"]
-    }
-  }
+	"compilerOptions": {
+		"target": "es2016",
+		"jsx": "preserve",
+		"module": "commonjs",
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"strict": false,
+		"skipLibCheck": true,
+		"paths": {
+			"react": ["./src/React"],
+			"reactDOM": ["./src/ReactDOM"]
+		}
+	}
 }
