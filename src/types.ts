@@ -1,6 +1,6 @@
 export type Component = string | number | ReactComponent;
 export type Children = Component[];
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+// biome-ignore lint/suspicious/noExplicitAny: needed for generic props
 export type Props = Record<string, any> & { children?: Children };
 
 export type ReactElementTag<T> = (props: Props, children?: Children) => T;

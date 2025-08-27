@@ -1,5 +1,5 @@
 import React from "react";
-import type { ReactComponent, Props, Tag, SuspenseComponent } from "./types";
+import type { Props, ReactComponent, SuspenseComponent, Tag } from "./types";
 
 export function mergeProps(...props: Props[]) {
 	return { ...props[0], ...props[1] };

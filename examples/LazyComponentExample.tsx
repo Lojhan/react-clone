@@ -1,4 +1,4 @@
-import { use, Suspense } from "react";
+import { Suspense, use } from "react";
 
 type TODO = {
 	userId: number;

@@ -1,10 +1,10 @@
-import React from "./React";
 import {
+	isContextProvider,
 	isFragment,
 	isPrimitive,
 	isSuspenseComponent,
-	isContextProvider,
 } from "./helpers";
+import React from "./React";
 import type { Component, Props, SyncTag } from "./types";
 
 type VNode = {

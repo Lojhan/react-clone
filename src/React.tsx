@@ -1,5 +1,5 @@
-import ReactDOM from "./ReactDOM";
 import { isPromise, mergeProps } from "./helpers";
+import ReactDOM from "./ReactDOM";
 import type { Component, Props, ReactElementTag, SyncTag } from "./types";
 
 type HookNode = {
@@ -34,7 +34,6 @@ export function React() {
 
 		return currentNode;
 	}
-
 
 	function getCurrentSuspenseBoundary(
 		hookNode: HookNode,
@@ -132,11 +131,9 @@ export function React() {
 			return createSuspenseElement(tag, props, children);
 		}
 
-		const isContextElement = tag[ContextSymbol];
-
 		return {
 			tag,
-			[ContextSymbol]: isContextElement,
+			[ContextSymbol]: tag[ContextSymbol],
 			props: mergeProps(props, { children }),
 		};
 	}
