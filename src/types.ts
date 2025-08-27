@@ -16,7 +16,7 @@ export type ReactComponent = {
 
 export type SuspenseComponent = ReactComponent & {
 	__suspense?: {
-		isSuspended: boolean;
+		id: string;
 		fallback: Component;
 	};
 };

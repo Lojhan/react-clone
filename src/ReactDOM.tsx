@@ -262,7 +262,6 @@ function ReactDOM() {
 
 		if (typeof vnode.type === "string") {
 			const element = document.createElement(vnode.type);
-
 			updateElement(element, {}, vnode.props);
 
 			for (const child of vnode.children || []) {
@@ -291,44 +290,48 @@ function ReactDOM() {
 
 		const htmlElement = element as HTMLElement;
 
-		for (const name of Object.keys(oldProps)) {
-			if (name !== "children" && !(name in newProps)) {
-				if (name.startsWith("on")) {
-					const eventType = name.toLowerCase().substring(2);
-					htmlElement.removeEventListener(eventType, oldProps[name]);
-				} else if (name === "className") {
-					htmlElement.className = "";
-				} else if (name === "style") {
-					htmlElement.removeAttribute("style");
-				} else {
-					htmlElement.removeAttribute(name);
-				}
+		const excludedKeys = ["__source", "__self"];
+
+		for (const name of Object.keys(oldProps).filter(
+			(key) => !excludedKeys.includes(key),
+		)) {
+			if (name === "children" || !(name in newProps)) continue;
+			if (name.startsWith("on")) {
+				const eventType = name.toLowerCase().substring(2);
+				htmlElement.removeEventListener(eventType, oldProps[name]);
+			} else if (name === "className") {
+				htmlElement.className = "";
+			} else if (name === "style") {
+				htmlElement.removeAttribute("style");
+			} else {
+				htmlElement.removeAttribute(name);
 			}
 		}
 
-		for (const name of Object.keys(newProps)) {
-			if (name !== "children") {
-				if (name.startsWith("on")) {
-					const eventType = name.toLowerCase().substring(2);
-					if (oldProps[name]) {
-						htmlElement.removeEventListener(eventType, oldProps[name]);
-					}
-					htmlElement.addEventListener(eventType, newProps[name]);
-				} else if (name === "className") {
-					htmlElement.className = newProps[name] || "";
-				} else if (name === "style") {
-					if (typeof newProps[name] === "string") {
-						htmlElement.style.cssText = newProps[name];
-					} else if (typeof newProps[name] === "object") {
-						Object.assign(htmlElement.style, newProps[name]);
-					}
-				} else if (name === "ref") {
-					if (newProps[name] && typeof newProps[name] === "object") {
-						newProps[name].current = htmlElement;
-					}
-				} else {
-					htmlElement.setAttribute(name, String(newProps[name]));
+		for (const name of Object.keys(newProps).filter(
+			(key) => !excludedKeys.includes(key),
+		)) {
+			if (name === "children") continue;
+			if (name.startsWith("on")) {
+				const eventType = name.toLowerCase().substring(2);
+				if (oldProps[name]) {
+					htmlElement.removeEventListener(eventType, oldProps[name]);
 				}
+				htmlElement.addEventListener(eventType, newProps[name]);
+			} else if (name === "className") {
+				htmlElement.className = newProps[name] || "";
+			} else if (name === "style") {
+				if (typeof newProps[name] === "string") {
+					htmlElement.style.cssText = newProps[name];
+				} else if (typeof newProps[name] === "object") {
+					Object.assign(htmlElement.style, newProps[name]);
+				}
+			} else if (name === "ref") {
+				if (newProps[name] && typeof newProps[name] === "object") {
+					newProps[name].current = htmlElement;
+				}
+			} else {
+				htmlElement.setAttribute(name, String(newProps[name]));
 			}
 		}
 	}
@@ -353,5 +356,4 @@ function ReactDOM() {
 	};
 }
 
-const _ReactDOM = ReactDOM();
-export default _ReactDOM;
+export default ReactDOM();

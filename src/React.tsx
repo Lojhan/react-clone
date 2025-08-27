@@ -1,6 +1,6 @@
 import ReactDOM from "./ReactDOM";
 import { isPromise, mergeProps } from "./helpers";
-import type { Component, Props, SyncTag } from "./types";
+import type { Component, Props, ReactElementTag, SyncTag } from "./types";
 
 type HookNode = {
 	id: string;
@@ -12,20 +12,18 @@ type HookNode = {
 	updateQueue: (() => void)[];
 };
 
+type SuspenseCache = Map<string, Promise<unknown> | unknown>;
+
 export function React() {
 	const rootNode: HookNode = createNode("root");
 	const activeNodes = new Set<string>();
 	let currentNode: HookNode = rootNode;
 	enterComponent(rootNode.id);
 	activeNodes.add(rootNode.id);
-	const FragmentSymbol: symbol = Symbol.for("react.fragment");
-	const ContextSymbol: symbol = Symbol.for("react.context");
-	const SuspenseSymbol: symbol = Symbol.for("react.suspense");
-
-	const suspenseCaches = new Map<
-		string,
-		Map<string, Promise<unknown> | unknown>
-	>();
+	const FragmentSymbol = Symbol.for("react.fragment");
+	const ContextSymbol = Symbol.for("react.context");
+	const SuspenseSymbol = Symbol.for("react.suspense");
+	const suspenseCaches = new Map<string, SuspenseCache>();
 
 	function getCurrentNode() {
 		if (!currentNode) {
@@ -37,22 +35,18 @@ export function React() {
 		return currentNode;
 	}
 
-	const suspenseMap: Map<
-		string,
-		Map<string | number, Promise<unknown> | unknown>
-	> = new Map();
 
 	function getCurrentSuspenseBoundary(
 		hookNode: HookNode,
-	): Map<string, Promise<unknown> | unknown> {
-		let _node = hookNode;
+	): SuspenseCache | undefined {
+		let node = hookNode;
 
-		while (_node) {
-			const cache = suspenseCaches.get(_node.id);
+		while (node) {
+			const cache = suspenseCaches.get(node.id);
 			if (cache) {
 				return cache;
 			}
-			_node = _node.parent;
+			node = node.parent;
 		}
 
 		console.error(
@@ -64,17 +58,13 @@ export function React() {
 		);
 	}
 
-	function createSuspenseCache(
-		componentId: string,
-	): Map<string, Promise<unknown> | unknown> {
-		const cache = new Map<string, Promise<unknown> | unknown>();
+	function createSuspenseCache(componentId: string): SuspenseCache {
+		const cache = new Map();
 		suspenseCaches.set(componentId, cache);
 		return cache;
 	}
 
-	function getSuspenseCache(
-		componentId: string,
-	): Map<string, Promise<unknown> | unknown> | undefined {
+	function getSuspenseCache(componentId: string): SuspenseCache | undefined {
 		return suspenseCaches.get(componentId);
 	}
 
@@ -113,7 +103,7 @@ export function React() {
 	}
 
 	function createElement(
-		tag: string | ((props: Props, children: Component[]) => Component),
+		tag: string | ReactElementTag<Component>,
 		props: Props = {},
 		...children: Component[]
 	): Component {
@@ -134,7 +124,7 @@ export function React() {
 	}
 
 	function createReactElement(
-		tag: (props: Props, children: Component[]) => Component,
+		tag: ReactElementTag<Component>,
 		props: Props,
 		children: Component[],
 	) {
@@ -152,15 +142,11 @@ export function React() {
 	}
 
 	function createSuspenseElement(
-		tag: (props: Props, children: Component[]) => Component,
+		tag: ReactElementTag<Component>,
 		props: Props,
 		children: Component[],
 	) {
 		const promiseCache = new Map();
-
-		if (!suspenseMap.has(currentNode.id)) {
-			suspenseMap.set(currentNode.id, promiseCache);
-		}
 
 		return {
 			tag,
@@ -218,12 +204,10 @@ export function React() {
 	function directUpdate(
 		update: (arg0: unknown) => void,
 		index: number,
-		hookNode: HookNode,
+		node: HookNode,
 	) {
-		if (hookNode) {
-			const newState = update(hookNode.hooks[index]);
-			hookNode.hooks[index] = newState;
-		}
+		if (!node) return;
+		node.hooks[index] = update(node.hooks[index]);
 	}
 
 	function flushUpdate() {
@@ -255,10 +239,6 @@ export function React() {
 
 		for (const childId of childrenToRemove) {
 			node.children.delete(childId);
-
-			if (suspenseMap.has(childId)) {
-				suspenseMap.delete(childId);
-			}
 		}
 	}
 
@@ -324,11 +304,7 @@ export function React() {
 		hookNode.hooks[index] = newState;
 	}
 
-	function setContextValue(
-		contextId: symbol,
-		value: unknown,
-		hookNode: HookNode,
-	) {
+	function setContextValue(contextId, value: unknown, hookNode: HookNode) {
 		if (!hookNode) {
 			throw new Error("setContextValue called outside of component context");
 		}
@@ -336,7 +312,7 @@ export function React() {
 	}
 
 	function getClosestContextValue<T>(
-		contextId: symbol,
+		contextId,
 		defaultValue: T,
 		hookNode: HookNode,
 	): T {

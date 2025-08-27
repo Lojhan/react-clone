@@ -60,7 +60,7 @@ function MessageSender() {
 		}, 1000);
 
 		return () => clearInterval(timer);
-	}, []);
+	}, [sendMessage]);
 
 	return <div>Sent Message: {message}</div>;
 }
