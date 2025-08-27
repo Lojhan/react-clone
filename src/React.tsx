@@ -301,7 +301,7 @@ export function React() {
 		hookNode.hooks[index] = newState;
 	}
 
-	function setContextValue(contextId, value: unknown, hookNode: HookNode) {
+	function setContextValue(contextId: symbol, value: unknown, hookNode: HookNode) {
 		if (!hookNode) {
 			throw new Error("setContextValue called outside of component context");
 		}
@@ -309,7 +309,7 @@ export function React() {
 	}
 
 	function getClosestContextValue<T>(
-		contextId,
+		contextId: symbol,
 		defaultValue: T,
 		hookNode: HookNode,
 	): T {
@@ -381,7 +381,7 @@ export {
 export function generateComponentId(
 	tag: SyncTag,
 	props: Props,
-	parentId: string,
+	_: string,
 ): string {
 	const tagName = typeof tag === "function" ? tag.name || "Anonymous" : tag;
 	const key = props.key;

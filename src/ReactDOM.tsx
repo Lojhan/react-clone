@@ -336,7 +336,7 @@ function ReactDOM() {
 		}
 	}
 
-	function removeElement(vnode: VNode, container: HTMLElement): void {
+	function removeElement(vnode: VNode, _: HTMLElement): void {
 		if (vnode.domElement?.parentNode) {
 			vnode.domElement.parentNode.removeChild(vnode.domElement);
 		}
