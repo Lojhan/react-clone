@@ -29,3 +29,7 @@ export function isPromise(value: unknown): value is Promise<unknown> {
 		typeof (value as Promise<unknown>).then === "function"
 	);
 }
+
+export function isSuspenseResource(e: unknown) {
+	return e && typeof e === "object" && "promise" in e;
+}

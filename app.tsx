@@ -80,5 +80,5 @@ const styles = {
 		gap: "1rem",
 		padding: 0,
 		margin: 0,
-	}
-} as const
+	},
+} as const;

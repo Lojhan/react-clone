@@ -3,6 +3,7 @@ import {
 	isFragment,
 	isPrimitive,
 	isSuspenseComponent,
+	isSuspenseResource,
 } from "./helpers";
 import React from "./React";
 import type { Component, Props, SyncTag } from "./types";
@@ -82,10 +83,9 @@ function ReactDOM() {
 				parentId,
 			);
 
-			let cache = React.getSuspenseCache(componentId);
-			if (!cache) {
-				cache = React.createSuspenseCache(componentId);
-			}
+      let _ = React.getSuspenseCache(componentId);
+			_ ??= React.createSuspenseCache(componentId);
+			
 
 			React.enterComponent(componentId);
 
@@ -93,14 +93,9 @@ function ReactDOM() {
 			let children = [];
 
 			try {
-				for (const child of component.props.children) {
-					const childTree = createVirtualTree(child);
-					if (childTree) {
-						children.push(childTree);
-					}
-				}
+				children = component.props.children.map(createVirtualTree);
 			} catch (e) {
-				if (e && typeof e === "object" && "promise" in e) {
+				if (isSuspenseResource(e)) {
 					shouldShowFallback = true;
 					children = [];
 				} else {

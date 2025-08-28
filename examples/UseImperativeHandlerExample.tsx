@@ -20,9 +20,7 @@ function ExampleHandler({ ref }) {
 	}));
 
 	return (
-		<div style={styles}>
-			Click the button to test the useImperativeHandle
-		</div>
+		<div style={styles}>Click the button to test the useImperativeHandle</div>
 	);
 }
 

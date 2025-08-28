@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { useMemo, useCallback } from "../src/ReactHooks";
+import { useCallback, useMemo } from "../src/ReactHooks";
 import type { Component } from "../src/types";
 
 const buildMessage = () =>
@@ -60,7 +60,7 @@ function MessageSender() {
 		}, 1000);
 
 		return () => clearInterval(timer);
-	}, [sendMessage]);
+	}, []);
 
 	return <div>Sent Message: {message}</div>;
 }
