@@ -7,17 +7,7 @@ export function UseStateExample() {
 		<div>
 			<h1>useState Example</h1>
 			<p>This example demonstrates the use of the useState hook.</p>
-			<div
-				style={{
-					padding: "20px",
-					border: "1px solid #ccc",
-					borderRadius: "5px",
-					display: "flex",
-					gap: "10px",
-					flexDirection: "column",
-					alignItems: "center",
-				}}
-			>
+			<div style={styles.wrapper}>
 				<p>Current count: {count.toString()}</p>
 				<button type="button" onClick={() => setCount((prev) => prev + 1)}>
 					Increment
@@ -29,3 +19,15 @@ export function UseStateExample() {
 		</div>
 	);
 }
+
+const styles = {
+	wrapper: {
+		padding: "20px",
+		border: "1px solid #ccc",
+		borderRadius: "5px",
+		display: "flex",
+		gap: "10px",
+		flexDirection: "column",
+		alignItems: "center",
+	},
+} as const;

@@ -301,7 +301,11 @@ export function React() {
 		hookNode.hooks[index] = newState;
 	}
 
-	function setContextValue(contextId: symbol, value: unknown, hookNode: HookNode) {
+	function setContextValue(
+		contextId: symbol,
+		value: unknown,
+		hookNode: HookNode,
+	) {
 		if (!hookNode) {
 			throw new Error("setContextValue called outside of component context");
 		}

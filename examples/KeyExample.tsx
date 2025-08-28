@@ -23,28 +23,14 @@ export function KeyExample() {
 			<button type="button" onClick={addItem}>
 				Add Item
 			</button>
-			<ul
-				style={{
-					maxWidth: "300px",
-					margin: "20px 0",
-					padding: 0,
-					listStyleType: "none",
-				}}
-			>
+			<ul style={styles.list}>
 				{items.map((item) => (
-					<li
-						key={item.id}
-						style={{
-							display: "flex",
-							justifyContent: "space-between",
-							alignItems: "center",
-						}}
-					>
+					<li key={item.id} style={styles.listItem}>
 						{item.text}
 						<button
 							type="button"
 							onClick={() => removeItem(item.id)}
-							style={{ background: "red", color: "white" }}
+							style={styles.removeButton}
 						>
 							Remove
 						</button>
@@ -54,3 +40,21 @@ export function KeyExample() {
 		</div>
 	);
 }
+
+const styles = {
+	list: {
+		maxWidth: "300px",
+		margin: "20px 0",
+		padding: 0,
+		listStyleType: "none",
+	},
+	listItem: {
+		display: "flex",
+		justifyContent: "space-between",
+		alignItems: "center",
+	},
+	removeButton: {
+		background: "red",
+		color: "white",
+	},
+} as const;

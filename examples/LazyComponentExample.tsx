@@ -18,24 +18,10 @@ function LazyComponent() {
 	const data = use(getTodos);
 
 	return (
-		<ul
-			style={{
-				listStyle: "none",
-				padding: 0,
-				margin: 0,
-				height: "400px",
-				overflowY: "auto",
-			}}
-		>
+		<ul style={styles.list}>
 			{data.map((e) => (
-				<li
-					key={e.id}
-					style={{
-						padding: "0.5rem",
-						borderBottom: "1px solid #ccc",
-					}}
-				>
-					{e.title} - {e.completed ? "Completed" : "Pending"}
+				<li key={e.id} style={styles.listItem(e.completed)}>
+					{e.title}
 				</li>
 			))}
 		</ul>
@@ -56,18 +42,29 @@ export function LazyComponentExample() {
 }
 
 function Loading() {
-	return (
-		<div
-			style={{
-				fontStyle: "italic",
-				color: "#888",
-				display: "flex",
-				justifyContent: "center",
-				alignItems: "center",
-				height: "100px",
-			}}
-		>
-			Loading...
-		</div>
-	);
+	return <div style={styles.loading}>Loading...</div>;
 }
+
+const styles = {
+	list: {
+		maxHeight: "400px",
+		margin: "20px 0",
+		padding: 0,
+		listStyleType: "none",
+		overflowY: "auto",
+	},
+	listItem: (completed: boolean) => ({
+		display: "flex",
+		justifyContent: "space-between",
+		alignItems: "center",
+		opacity: completed ? 0.5 : 1,
+	}),
+	loading: {
+		fontStyle: "italic",
+		color: "#888",
+		display: "flex",
+		justifyContent: "center",
+		alignItems: "center",
+		height: "100px",
+	},
+} as const;

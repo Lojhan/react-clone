@@ -161,16 +161,7 @@ export function FullExample() {
 
 function FormWrapper(params) {
 	return (
-		<div
-			style={{
-				padding: "20px",
-				border: "1px solid #ccc",
-				borderRadius: "5px",
-				display: "flex",
-				flexDirection: "column",
-				gap: "10px",
-			}}
-		>
+		<div style={styles.wrapper}>
 			<h2>Form Example</h2>
 			{params.children}
 		</div>
@@ -192,7 +183,7 @@ function Input(props: { name: Key; label: string; type?: string }) {
 	const [mainKey, subKey] = props.name.split(".");
 
 	return (
-		<div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+		<div style={styles.input.wrapper}>
 			<label htmlFor={props.name} style={{ margin: "5px 0" }}>
 				{props.label}
 			</label>
@@ -202,26 +193,11 @@ function Input(props: { name: Key; label: string; type?: string }) {
 				key={props.name}
 				value={formData[mainKey][subKey] || ""}
 				onChange={handleChange}
-				style={{
-					padding: "10px 5px",
-					borderRadius: "3px",
-					border: "1px solid #ccc",
-				}}
+				style={styles.input.component}
 			/>
 		</div>
 	);
 }
-
-const buttonStyle = {
-	padding: "10px 20px",
-	backgroundColor: "#007bff",
-	color: "#fff",
-	border: "none",
-	borderRadius: "5px",
-	cursor: "pointer",
-	marginTop: "10px",
-	width: "100%",
-};
 
 function BasicForm() {
 	const { setCurrentPage } = useContext(UserFormContext);
@@ -232,11 +208,7 @@ function BasicForm() {
 			<Input name="basicData.lastName" label="Last Name" type="text" />
 			<Input name="basicData.email" label="Email" type="email" />
 			<Input name="basicData.phone" label="Phone" type="tel" />
-			<button
-				type="button"
-				style={buttonStyle}
-				onClick={() => setCurrentPage("addressData")}
-			>
+			<button type="button" onClick={() => setCurrentPage("addressData")}>
 				Next: Address Information
 			</button>
 		</div>
@@ -252,11 +224,7 @@ function AddressForm() {
 			<Input name="addressData.city" label="City" type="text" />
 			<Input name="addressData.state" label="State" type="text" />
 			<Input name="addressData.zip" label="Zip Code" type="text" />
-			<button
-				type="button"
-				style={buttonStyle}
-				onClick={() => setCurrentPage("paymentData")}
-			>
+			<button type="button" onClick={() => setCurrentPage("paymentData")}>
 				Next: Payment Information
 			</button>
 		</div>
@@ -278,7 +246,7 @@ function PaymentForm() {
 			<Input name="paymentData.cardNumber" label="Card Number" type="text" />
 			<Input name="paymentData.cardExpiry" label="Card Expiry" type="text" />
 			<Input name="paymentData.cardCVC" label="Card CVC" type="text" />
-			<button type="button" style={buttonStyle} onClick={handleClick}>
+			<button type="button" onClick={handleClick}>
 				Show User Data
 			</button>
 		</div>
@@ -304,23 +272,46 @@ function UserDataModal({ ref }) {
 	}, [setModalVisible, setCurrentPage, dispatch]);
 
 	return (
-		<div
-			style={{
-				position: "fixed",
-				top: "50%",
-				left: "50%",
-				transform: "translate(-50%, -50%)",
-				backgroundColor: "#fff",
-				padding: "20px",
-				borderRadius: "5px",
-				boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-			}}
-		>
+		<div style={styles.modal}>
 			<h2>User Data</h2>
 			<pre>{JSON.stringify(formData, null, 2)}</pre>
-			<button type="button" onClick={handleClick} style={buttonStyle}>
+			<button type="button" onClick={handleClick}>
 				Start Over
 			</button>
 		</div>
 	);
 }
+
+const styles = {
+	wrapper: {
+		padding: "20px",
+		border: "1px solid #ccc",
+		borderRadius: "5px",
+		display: "flex",
+		flexDirection: "column",
+		gap: "10px",
+	},
+	input: {
+		wrapper: {
+			display: "flex",
+			flexDirection: "column",
+			gap: "5px",
+		},
+		component: {
+			width: "100%",
+			padding: "8px",
+			borderRadius: "3px",
+			border: "1px solid #ccc",
+		},
+	},
+	modal: {
+		position: "fixed",
+		top: "50%",
+		left: "50%",
+		transform: "translate(-50%, -50%)",
+		backgroundColor: "#fff",
+		padding: "20px",
+		borderRadius: "5px",
+		boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+	},
+} as const;
