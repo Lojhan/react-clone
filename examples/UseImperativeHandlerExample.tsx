@@ -20,8 +20,12 @@ function ExampleHandler({ ref }) {
 	}));
 
 	return (
-		<div style="margin-block: 10px;">
+		<div style={styles}>
 			Click the button to test the useImperativeHandle
 		</div>
 	);
 }
+
+const styles = {
+	marginBlock: "10px",
+};

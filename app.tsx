@@ -46,10 +46,10 @@ export function App() {
 	}, []);
 
 	return (
-		<div style="display: flex; flex-direction: column; gap: 2rem; padding: 2rem;">
+		<div style={styles.container}>
 			<h1>React Examples</h1>
 			<nav>
-				<ul style="display: flex; gap: 1rem; padding: 0; margin: 0;">
+				<ul style={styles.list}>
 					{examples.map((example) => (
 						<li
 							onClick={onClickExample}
@@ -67,3 +67,18 @@ export function App() {
 		</div>
 	);
 }
+
+const styles = {
+	container: {
+		display: "flex",
+		flexDirection: "column",
+		gap: "2rem",
+		padding: "2rem",
+	},
+	list: {
+		display: "flex",
+		gap: "1rem",
+		padding: 0,
+		margin: 0,
+	}
+} as const
