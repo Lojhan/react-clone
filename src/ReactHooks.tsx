@@ -61,8 +61,7 @@ export function useEffect(callback: Callback, dependencies: Dependencies) {
 
 function dependenciesChanged(prev: Dependencies, current: Dependencies) {
 	if (!prev || prev.length !== current.length) return true;
-	if (prev.length === 0) return false;
-	if (!prev) return true;
+	if (prev.length === 0 && current.length === 0) return false;
 
 	return !current.every((dependency, index) => dependency === prev[index]);
 }

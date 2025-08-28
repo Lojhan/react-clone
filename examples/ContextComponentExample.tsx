@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { useMemo } from "../src/ReactHooks";
+import { useMemo, useCallback } from "../src/ReactHooks";
 import type { Component } from "../src/types";
 
 const buildMessage = () =>
@@ -34,9 +34,9 @@ type ExampleContextProviderProps = {
 function ExampleContextProvider(props: ExampleContextProviderProps) {
 	const [message, setMessage] = useState(buildMessage());
 
-	const sendMessage = (msg: string) => {
+	const sendMessage = useCallback((msg: string) => {
 		setMessage(msg);
-	};
+	}, []);
 
 	const value = useMemo(
 		() => ({ message, sendMessage }),
