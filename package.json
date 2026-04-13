@@ -1,27 +1,31 @@
 {
-	"name": "react-clone",
-	"version": "1.0.0",
-	"description": "",
-	"author": "Vinicius Lojhan",
-	"main": "index.tsx",
-	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1",
-		"dev": "parcel index.html --open",
-		"ssr": "parcel src/ssr.tsx --port 4000",
-		"react": "parcel index.tsx --port 3000"
-	},
-	"keywords": [],
-	"license": "ISC",
-	"dependencies": {
-		"@types/node": "^20.8.10",
-		"parcel": "^2.10.1",
-		"typescript": "^5.2.2"
-	},
-	"devDependencies": {
-		"buffer": "^6.0.3",
-		"events": "^3.3.0",
-		"process": "^0.11.10",
-		"stream-http": "^3.2.0",
-		"url": "^0.11.3"
-	}
+  "name": "react-clone",
+  "version": "1.0.0",
+  "description": "",
+  "author": "Vinicius Lojhan",
+  "main": "index.tsx",
+  "scripts": {
+    "test": "poku test --sequential",
+    "test:watch": "poku test --watch --sequential",
+    "dev": "parcel index.html --open",
+    "ssr": "parcel src/ssr.tsx --port 4000",
+    "react": "parcel index.tsx --port 3000"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^20.8.10",
+    "parcel": "^2.10.1",
+    "typescript": "^5.2.2"
+  },
+  "devDependencies": {
+    "buffer": "^6.0.3",
+    "events": "^3.3.0",
+    "jsdom": "^29.0.2",
+    "poku": "^4.2.1",
+    "process": "^0.11.10",
+    "stream-http": "^3.2.0",
+    "tsx": "^4.21.0",
+    "url": "^0.11.3"
+  }
 }
